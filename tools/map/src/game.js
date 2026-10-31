@@ -332,7 +332,36 @@ function render(t) {
   }
 
   g.drawImage(game.vignette, 0, 0);
+  g.drawImage(game.legend, 14, 14);
   game.hits = hits;
+}
+
+// The legend sits in the top-left corner of the canvas, drawn once.
+function buildLegend() {
+  const rows = [
+    ['blue', 'BLUE  CEO DECISION'], ['gold', 'GOLD  WARNING'], ['red', 'RED   BLOCKED OUTSIDE'], ['grey', 'GREY  INFO ONLY'],
+  ];
+  const w = 214, h = 22 + rows.length * 14 + 6 + 3 * 14 + 8;
+  const { c, g } = mk(w, h);
+  rect(g, 0, 0, w, h, '#000');
+  rect(g, 1, 1, w - 2, h - 2, '#17120d');
+  rect(g, 1, 1, w - 2, 1, '#6b6256'); rect(g, 1, 1, 1, h - 2, '#6b6256');
+  drawText(g, 'LEGEND', 8, 7, '#c8a85a', '#000', 2);
+  let y = 24;
+  for (const [col, label] of rows) {
+    const p = PORTAL_COLOURS[col].ring;
+    polyFn(g, [[13, y], [19, y + 5], [13, y + 10], [7, y + 5]], () => p);
+    drawText(g, label, 26, y + 1, '#e6dcc2', '#000', 2);
+    y += 14;
+  }
+  y += 6;
+  const states = [['#8a8270', 'IDLE  AT REST'], ['#ffd24a', 'WORKING  WITH RING'], ['#ff5a4a', '!  BLOCKED, MARKER']];
+  for (const [col, label] of states) {
+    rect(g, 7, y, 11, 10, '#000'); rect(g, 8, y + 1, 9, 8, col);
+    drawText(g, label, 26, y + 1, '#e6dcc2', '#000', 2);
+    y += 14;
+  }
+  return c;
 }
 function st2(t) { return Math.floor(t / 300) % 2 ? 2 : 0; }
 
@@ -391,13 +420,14 @@ function initInput() {
 
 // ---- start --------------------------------------------------------------------
 
-// Whole-number scaling keeps the pixels square. Below 1x it shrinks to fit.
+// The canvas is shown 25% larger than its internal 960x640 (1200x800), then shrinks to fit the window.
+const DISPLAY_SCALE = 1.25;
 function fitCanvas() {
-  const wide = window.innerWidth >= VW + 360;
+  const wide = window.innerWidth >= VW * DISPLAY_SCALE + 360;
   const availW = wide ? window.innerWidth - 360 : window.innerWidth - 16;
-  const raw = Math.min(availW / VW, (window.innerHeight - 16) / VH);
-  const scale = raw >= 1 ? Math.floor(raw) : Math.min(1, availW / VW);
-  const w = wide || raw >= 1 ? VW * scale : availW;
+  const fit = Math.min(availW / VW, (window.innerHeight - 16) / VH);
+  const scale = fit >= DISPLAY_SCALE * 2 ? DISPLAY_SCALE * 2 : Math.min(DISPLAY_SCALE, fit);
+  const w = VW * scale;
   const el = game.screen.c;
   el.style.width = Math.floor(w) + 'px';
   el.style.height = Math.floor(w * VH / VW) + 'px';
@@ -410,6 +440,7 @@ function startGame(data) {
   game.chars = buildCharacters();
   game.portals = buildPortals();
   game.vignette = buildVignette();
+  game.legend = buildLegend();
   game.state = deriveState(data);
   initFx(game.village);
   if (data.ceoSheet) loadCeoSheet(data.ceoSheet);

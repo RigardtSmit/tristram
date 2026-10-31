@@ -1,7 +1,8 @@
-# Brief: {{name}} (v1, DRAFT)
+# Brief: {{name}}
 
+**Version:** v1
+**Status:** DRAFT
 **Work item:** {{id}}
-**Status:** DRAFT (not signed off)
 
 ## Goal
 

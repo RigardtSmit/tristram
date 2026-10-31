@@ -72,3 +72,24 @@ Generated in the main checkout, git-ignored. A JSON array of entries (SPEC 17.2)
 ## Check script exit codes
 
 `0` pass, `1` defect, `2` environment failure. Check scripts are never registered directly as Claude Code hooks, because hooks treat exit 2 as "block". A hook wrapper translates the code.
+
+## questions/<character>.md
+
+Written only by `node tools/questions.mjs` (never by hand). One entry per question:
+
+```
+Q-014-02  griswold  2026-11-03T10:12:00Z
+Question: Should GET /intake be paginated?
+Blocking: no (proceeding on the assumption below)
+Assumption: Paginated, page size 50, per the list-endpoint standard
+Answer: pending (Cain)
+Reviewed: pending
+```
+
+- `Answer` is `pending (Cain)`, `pending (CEO)`, `<text> (answered by cain|ceo, date)`, or `accepted as assumed (by ceo, date)`.
+- `Reviewed` is `pending`, `n/a` (blocking), or `keep|revise by cain, date - note`, set at a checkpoint.
+- The debrief lists every non-blocking question whose answer is still pending, so Lazarus can check each was answered or accepted by the CEO.
+
+## Commands that run the status machine
+
+`node tools/idea.mjs` (`list`, `status`, `gate`, `accept-brief`, `accept-stack`, `set-state`) is the only thing that writes `status.md`, `transitions.jsonl` and the status lines of `log.md`. The legal moves are in `tools/lib/idea.mjs` (`TRANSITIONS`) and follow SPEC 4. `accept-*` need `--by ceo`.

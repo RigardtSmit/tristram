@@ -130,17 +130,18 @@ const GLYPHS = {
   "'": '.#.' + '.#.' + '...' + '...' + '...', ' ': '.'.repeat(15),
 };
 
-function textWidth(s) { return s.length * 4 - 1; }
+function textWidth(s, sc = 1) { return (s.length * 4 - 1) * sc; }
 
-function drawText(g, s, x, y, col, shadow) {
+// sc enlarges each font pixel to sc x sc, for headings and the legend.
+function drawText(g, s, x, y, col, shadow, sc = 1) {
   s = s.toUpperCase();
   for (let pass = shadow ? 0 : 1; pass < 2; pass++) {
     g.fillStyle = pass === 0 ? shadow : col;
-    const ox = pass === 0 ? 1 : 0, oy = pass === 0 ? 1 : 0;
+    const ox = pass === 0 ? sc : 0, oy = pass === 0 ? sc : 0;
     for (let n = 0; n < s.length; n++) {
       const gl = GLYPHS[s[n]] || GLYPHS[' '];
       for (let k = 0; k < 15; k++) {
-        if (gl[k] === '#') g.fillRect(x + n * 4 + (k % 3) + ox, y + Math.floor(k / 3) + oy, 1, 1);
+        if (gl[k] === '#') g.fillRect(x + (n * 4 + (k % 3)) * sc + ox, y + Math.floor(k / 3) * sc + oy, sc, sc);
       }
     }
   }

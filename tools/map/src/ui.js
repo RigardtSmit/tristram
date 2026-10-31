@@ -92,24 +92,7 @@ function renderDetail() {
   box.appendChild(dl);
 }
 
-function renderLegend() {
-  const box = document.getElementById('legend');
-  box.replaceChildren(el('h2', null, 'Legend'));
-  const list = el('ul', 'legend');
-  for (const [k, v] of Object.entries(PORTAL_COLOURS)) {
-    const li = el('li');
-    li.append(el('span', 'gem ' + k), el('span', null, `${v.name}: ${v.meaning}`));
-    list.appendChild(li);
-  }
-  for (const [k, v] of [['idle', 'Idle: at rest'], ['working', 'Working: swinging, with a progress ring'], ['marker', 'Blocked: red or gold marker overhead']]) {
-    const li = el('li');
-    li.append(el('span', 'dotkey ' + k), el('span', null, v));
-    list.appendChild(li);
-  }
-  box.appendChild(list);
-}
-
+// The legend now lives in the top-left corner of the canvas (see buildLegend in game.js).
 function initUI() {
   game.onChange = () => { renderQueue(); renderDetail(); };
-  renderLegend();
 }
