@@ -1,0 +1,49 @@
+// CEO queue CLI. Usage: node tools/queue.mjs <command>
+//   build                 rebuild ceo/queue.json from every idea
+//   list                  text list of everything waiting for the CEO, with options          (/queue)
+//   decide <CQ-id> <option> [--note "..."]   record the CEO's choice in the item's record and carry it out where it is mechanical
+import fs from 'node:fs';
+import path from 'node:path';
+import { buildQueue } from './lib/queue.mjs';
+import { findIdea, transition, acceptStack, logEvent } from './lib/idea.mjs';
+import * as E from './lib/env.mjs';
+
+const argv = process.argv.slice(2);
+const cmd = argv[0];
+const opt = (f) => { const i = argv.indexOf(f); return i === -1 ? undefined : argv[i + 1]; };
+function fail(msg) { console.error(`queue: ${msg}`); process.exit(1); }
+const ICON = { blue: 'BLUE', gold: 'GOLD', red: 'RED ', grey: 'GREY' };
+const age = (iso) => { const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000)); return m < 90 ? `${m} min` : m < 2880 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`; };
+
+try {
+  if (cmd === 'build') {
+    const q = buildQueue();
+    console.log(`ceo/queue.json: ${q.length} item(s).`);
+  } else if (cmd === 'list') {
+    const q = buildQueue();
+    if (!q.length) { console.log('Nothing is waiting for you.'); process.exit(0); }
+    for (const e of q) {
+      console.log(`[${ICON[e.colour]}] ${e.id}  ${e.type}  (${age(e.raised)})`);
+      console.log(`       ${e.summary}`);
+      console.log(`       idea: ${e.idea}   detail: ${e.detail}`);
+      console.log(`       options: ${e.options.join(' | ')}`);
+    }
+  } else if (cmd === 'decide') {
+    const [, id, option] = argv;
+    if (!id || !option) fail('usage: decide <CQ-id> <option>');
+    const entry = buildQueue().find((e) => e.id === id) || fail(`no queue item ${id}`);
+    if (!entry.options.includes(option)) fail(`"${option}" is not an option for ${id}. Options: ${entry.options.join(', ')}`);
+    const idea = findIdea(entry.idea);
+    let did = 'recorded; the character or Cain acts on it';
+    if (option === 'stop') { transition(idea, 'STOPPED', { actor: 'ceo', note: `CEO stopped the item (${id})` }); did = 'item STOPPED (branch kept, not merged)'; }
+    else if (option === 'resume_when_fixed') { const r = E.resume(idea, { by: 'ceo' }); did = `resumed at cycle ${r.cycle}`; }
+    else if (/^approve_option_[ab]$/.test(option)) { acceptStack(idea, 'ceo', option.slice(-1).toUpperCase()); did = 'ADR-001 accepted'; }
+    const rec = path.join(idea.dir, 'record', 'ceo-decisions.md');
+    fs.appendFileSync(rec, `- ${new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')} ${id} ${entry.type}: ${option}${opt('--note') ? ` (${opt('--note')})` : ''}\n`);
+    logEvent(idea.dir, 'ceo', `decided ${id}: ${option}`);
+    buildQueue();
+    console.log(`${id}: ${option}. ${did}.`);
+  } else fail('commands: build, list, decide');
+} catch (err) {
+  fail(err.message);
+}

@@ -16,7 +16,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 function fail(msg) { console.error(`contract: ${msg}`); process.exit(1); }
 
 // The check that must pass before a contract freezes.
-const CHECKS = { schema: ['db_check.mjs'] };
+const CHECKS = { schema: ['db_check.mjs'], api: ['api_check.mjs', '--contract-only'] };
 
 try {
   if (!cmd || !name || !kind) fail('usage: <init|status|freeze|verify> <idea> <schema|api>');
@@ -37,13 +37,13 @@ try {
   } else if (cmd === 'freeze') {
     if (opt('--by') !== 'cain') fail('Cain freezes contracts (use --by cain)');
     let checkPassed = false;
-    const script = CHECKS[kind]?.[0];
+    const [script, ...extra] = CHECKS[kind] ?? [];
     if (script) {
-      const r = spawnSync(process.execPath, ['--no-warnings', path.join(here, 'checks', script), name], { encoding: 'utf8' });
+      const r = spawnSync(process.execPath, ['--no-warnings', path.join(here, 'checks', script), name, ...extra], { encoding: 'utf8' });
       process.stdout.write(r.stdout);
       if (r.status === 2) { console.error(r.stderr); fail('environment failure while checking; the contract was not frozen'); }
       checkPassed = r.status === 0;
-    } else checkPassed = true;      // no check exists for this kind yet (API check arrives in A4)
+    } else checkPassed = true;
     const out = freeze(idea, kind, { by: 'cain', checkPassed });
     console.log(`${kind} contract FROZEN ${out.version}. Handover to the dependent characters is next.`);
   } else fail('commands: init, status, freeze, verify');

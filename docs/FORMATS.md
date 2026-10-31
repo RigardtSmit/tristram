@@ -93,3 +93,19 @@ Reviewed: pending
 ## Commands that run the status machine
 
 `node tools/idea.mjs` (`list`, `status`, `gate`, `accept-brief`, `accept-stack`, `set-state`) is the only thing that writes `status.md`, `transitions.jsonl` and the status lines of `log.md`. The legal moves are in `tools/lib/idea.mjs` (`TRANSITIONS`) and follow SPEC 4. `accept-*` need `--by ceo`.
+
+## Handovers, defects, mocks and plans (A4)
+
+- **handovers/HO-NNN-SSS.md** (SPEC 7.5): `From`, `To`, `Contract` (a claim of `schema|api.yaml FROZEN vN` is checked against the real contract), `Changed since previous`, `Ready`, `Mocks to replace`. Addressees append `Acknowledged: <name>, built against <contract>, <date>`.
+- **cycles/defects.jsonl**: append-only events `{ts, id, key, owner, check, cycle, summary, result}` where `result` is `raised`, `persisted`, `fixed` or `reintroduced`. A defect keeps its `DEF-NNN-SS` id across cycles. `cycles/cycle-N/defects.md` is a generated view.
+- **artifacts/ui/mocks.md** and **mocks/mock-data.json**: generated from the frozen `api.yaml`; each row is `# | Endpoint | Replaces | Mocked statuses | mock|replaced`.
+- **plan.md**: `**Cycle:**`, `**Areas:**` (`schema, api, ui, tests`), then the tables Work items, Dependencies and the list Parallel steps. The cycle's checks run for exactly the listed areas.
+- **artifacts/<area>/factory.json**: how to build and test that area on this idea's stack, e.g. `{"install":"npm ci","build":"npm run build","test":"npm test","dist":"dist"}`. The checks run these commands; they know nothing else about the stack.
+- **cycles/cycle-N/env.md**: written when a check exits 2. The idea becomes `ENVIRONMENT_BLOCKED` and the cycle number does not change.
+
+## Environment blocks, flaky checks and the CEO queue (A5)
+
+- **cycles/cycle-N/env.json** and **env.md**: the open block (`checks`, `owner`, `cause`, `resumeTo`, `attempts[]`, `status` of `open`, `escalated` or `resolved`). The owner has two attempts (`node tools/env.mjs attempt`); only then can Cain confirm and escalate. Resuming returns the item to `resumeTo` with the **same cycle number**.
+- **record/flaky.jsonl**: `{ts, check, cycle, event, retries}`. `retry-pass` means the check passed only after a timeout retry (not a clean pass); `clean` closes it. A timeout is retried twice (waits of 2 s then 4 s, `TRISTRAM_RETRY_WAIT_MS`); the command timeout is `TRISTRAM_CMD_TIMEOUT_MS`.
+- **ceo/queue.json** (generated, git-ignored) holds one entry per thing waiting for the CEO. Types so far: `STACK_APPROVAL`, `BLOCKED_FOR_CEO`, `QUESTION` (blue); `ENVIRONMENT_BLOCKED` once escalated (red); `FLAKY_CHECK` (gold). An optional `location` names the character whose place the portal floats over. Ids (`CQ-YYYY-MM-DD-NNN`) are kept stable in `ceo/queue-index.json`.
+- **record/ceo-decisions.md**: each choice made with `node tools/queue.mjs decide <CQ-id> <option>`.

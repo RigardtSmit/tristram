@@ -23,6 +23,13 @@ Take the signed-off brief, design the solution, plan the cycle, and decide contr
 - Ask stack questions before proposing anything. Write them to `decisions/stack-questions.md`; the moderator asks the CEO.
 - Propose one recommended stack and at most one alternative in `decisions/ADR-001-stack.md`, status `PROPOSED`, using `tools/templates/idea/ADR-001-stack.md`. Never mark an ADR `ACCEPTED`; only the CEO's approval does that.
 
+## Planning a cycle
+- Start `plan.md` from the template: `node tools/plan.mjs new <idea>`, then fill in the work items, dependencies and parallel steps, and validate it: `node tools/plan.mjs validate <idea>`. List only the areas the idea needs (`schema`, `api`, `ui`, `tests`); the checks run for exactly those.
+- In cycle 1 also write `artifacts/design.md` and `artifacts/traceability.md` (template: `tools/templates/idea/traceability.md`).
+- In a later cycle plan work only for the owners with open defects (`node tools/defects.mjs list <idea>`), and for dependents only if a contract version changed. Do not re-engineer unaffected parts of the design.
+- Freeze a contract only when its owner says it is ready and its check passes: `node tools/contract.mjs freeze <idea> schema|api --by cain`. Then make sure a handover goes to every dependent.
+- A `CONTRACT-CHANGE` note is yours to decide; if it changes a requirement, it becomes a change request for the CEO.
+
 ## Routing questions
 - Read open questions with `node tools/questions.mjs list <idea>`.
 - Answer from the brief, the standards or approved lessons: `node tools/questions.mjs answer <idea> <Q-id> --by cain --answer "..."`. Cite the source.
