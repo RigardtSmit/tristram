@@ -1,0 +1,57 @@
+[
+  {
+    "id": "CQ-2026-10-31-001",
+    "item": "2026-10-28-legacy-report",
+    "type": "BLOCKED_FOR_CEO",
+    "colour": "blue",
+    "raised": "2026-10-31T14:20:00Z",
+    "location": "town-square",
+    "summary": "DEF-004-03 persists after 3 cycles; Griswold and Farnham disagree on root cause",
+    "options": ["send_to_lazarus", "return_to:griswold", "stop"],
+    "detail": "town-square/2026-10-31-1-summary.md"
+  },
+  {
+    "id": "CQ-2026-10-31-002",
+    "item": "2026-10-25-customer-intake",
+    "type": "BUDGET_70",
+    "colour": "gold",
+    "raised": "2026-10-31T11:05:00Z",
+    "location": "griswold",
+    "summary": "Item budget at 70% during cycle 2",
+    "options": ["acknowledge"],
+    "detail": "record/log.md"
+  },
+  {
+    "id": "CQ-2026-10-31-003",
+    "item": "2026-10-25-customer-intake",
+    "type": "FLAKY_CHECK",
+    "colour": "gold",
+    "raised": "2026-10-31T12:40:00Z",
+    "location": "farnham",
+    "summary": "test_check passed and failed twice with no code change",
+    "options": ["acknowledge", "return_to:farnham"],
+    "detail": "cycles/cycle-2/checks.md"
+  },
+  {
+    "id": "CQ-2026-10-31-004",
+    "item": "2026-10-20-demo-form",
+    "type": "ENVIRONMENT_BLOCKED",
+    "colour": "red",
+    "raised": "2026-10-31T09:15:00Z",
+    "location": "wirt",
+    "summary": "Scratch database unreachable after 2 attempts",
+    "options": ["retry", "stop"],
+    "detail": "cycles/cycle-1/env.md"
+  },
+  {
+    "id": "CQ-2026-10-30-005",
+    "item": "2026-10-12-newsletter-signup",
+    "type": "ITEM_CLOSED",
+    "colour": "grey",
+    "raised": "2026-10-30T16:00:00Z",
+    "location": "ogden",
+    "summary": "Item closed; 2 lessons promoted",
+    "options": ["dismiss"],
+    "detail": "record/debrief.md"
+  }
+]

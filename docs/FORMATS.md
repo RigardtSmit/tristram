@@ -20,6 +20,15 @@ Plain text. The header is `key: value` lines (one per line, no nesting). The His
 | `env_block` | Open environment block, else `none` |
 | `created` | Creation time |
 
+### Map keys (B1 mock, settled in B2)
+
+The B1 map reads three extra `status.md` lines, used only by mock files for now:
+
+- `active_agents: griswold:0.6, adria:0.3` (agent and progress 0 to 1, or `none`)
+- `blocked_agents: farnham:gold:waiting on HO-002-005` (agent, marker colour `red` or `gold`, reason, or `none`)
+
+Queue entries in the mock also carry an optional `location` (a character name or `town-square`) saying which place the portal floats over. B2 decides whether these become real fields or are derived from the type and item.
+
 ## record/log.md
 
 Append-only. One line per event: `- <timestamp> <agent> <action> <path>`.

@@ -7,3 +7,7 @@ node_modules/
 # Generated global state, main checkout only (SPEC 16.1)
 ceo/queue.json
 knowledge/roster/*.html
+
+# Built map bundle
+tools/map/dist/
+tools/map/local-assets/

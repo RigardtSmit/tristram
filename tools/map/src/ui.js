@@ -1,0 +1,115 @@
+'use strict';
+// Side panel: queue list, selection detail, legend. Buttons are inactive in B1 (mock data).
+
+const STATE_TEXT = { idle: 'Idle', working: 'Working', blocked: 'Blocked' };
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function ago(iso) {
+  const mins = Math.max(0, Math.round((Date.parse('2026-10-31T18:00:00Z') - Date.parse(iso)) / 60000));
+  return mins < 90 ? `${mins} min` : mins < 2880 ? `${Math.round(mins / 60)} h` : `${Math.round(mins / 1440)} d`;
+}
+
+function renderQueue() {
+  const ul = document.getElementById('qlist');
+  ul.replaceChildren();
+  const portals = game.state.portals;
+  document.getElementById('qcount').textContent = String(portals.length);
+  if (!portals.length) { ul.appendChild(el('li', 'empty', 'Nothing is waiting for you.')); return; }
+  for (const q of portals) {
+    const li = el('li', 'qrow' + (game.sel?.id === q.id ? ' sel' : ''));
+    li.tabIndex = 0;
+    const gem = el('span', 'gem ' + q.colour);
+    const body = el('div', 'qbody');
+    body.appendChild(el('div', 'qtype', q.type.replace(/_/g, ' ').toLowerCase()));
+    body.appendChild(el('div', 'qsum', q.summary));
+    body.appendChild(el('div', 'qmeta', `${q.item.replace(/^\d{4}-\d{2}-\d{2}-/, '')} · ${PLACE[q.loc] || q.loc} · ${ago(q.raised)}`));
+    li.append(gem, body);
+    const go = () => selectPortal(q.id, true);
+    li.addEventListener('click', go);
+    li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    ul.appendChild(li);
+  }
+}
+
+function renderDetail() {
+  const box = document.getElementById('detail');
+  box.replaceChildren();
+  const sel = game.sel;
+  if (!sel) {
+    box.appendChild(el('h2', null, 'The village'));
+    box.appendChild(el('p', 'hint', 'Click a portal, a character, or the ground. Click the ground to walk the CEO there. Blue portals pull him to them.'));
+    return;
+  }
+  if (sel.kind === 'portal') {
+    const q = game.state.portals.find((p) => p.id === sel.id);
+    if (!q) return;
+    box.appendChild(el('h2', null, q.type.replace(/_/g, ' ').toLowerCase()));
+    const tag = el('div', 'tag ' + q.colour, `${PORTAL_COLOURS[q.colour].name}: ${PORTAL_COLOURS[q.colour].meaning}`);
+    box.appendChild(tag);
+    box.appendChild(el('p', null, q.summary));
+    const dl = el('dl');
+    for (const [k, v] of [['Item', q.item], ['Where', PLACE[q.loc] || q.loc], ['Raised', `${q.raised.replace('T', ' ').replace('Z', '')} (${ago(q.raised)} ago)`], ['Detail', q.detail], ['Entry', q.id]]) {
+      dl.append(el('dt', null, k), el('dd', null, v));
+    }
+    box.appendChild(dl);
+    const row = el('div', 'opts');
+    for (const o of q.options) {
+      const b = el('button', 'stone', o.replace(/_/g, ' ').replace(':', ' to '));
+      b.disabled = true;
+      b.title = 'Inactive in B1: decisions are wired in B2';
+      row.appendChild(b);
+    }
+    box.appendChild(row);
+    box.appendChild(el('p', 'note', 'Buttons are inactive in B1. Mock data only.'));
+    return;
+  }
+  if (sel.kind === 'barb') {
+    box.appendChild(el('h2', null, 'The CEO'));
+    box.appendChild(el('p', null, 'Barbarian. Owner and Product Owner. The class is visual only and grants no permissions.'));
+    return;
+  }
+  const name = sel.id;
+  const reg = game.data.registry[name];
+  const st = game.state.chars[name];
+  box.appendChild(el('h2', null, DISPLAY[name]));
+  box.appendChild(el('div', 'tag ' + (st.state === 'blocked' ? st.blocked.colour : st.state), `${STATE_TEXT[st.state]}${st.blocked ? ': ' + st.blocked.reason : ''}`));
+  const dl = el('dl');
+  const rows = [['Role', reg?.role ?? ''], ['Place', PLACE[name]], ['Tools', (reg?.tools || []).join(', ')],
+    ['Skills', String(reg?.skills?.length ?? 0)], ['Connectors', String(reg?.connectors?.length ?? 0)],
+    ['Working on', st.items.length ? st.items.join(', ') : 'nothing']];
+  const runs = game.data.metrics.filter((m) => m.agent === name);
+  if (runs.length) {
+    const tin = runs.reduce((a, m) => a + m.tokens_in, 0), tout = runs.reduce((a, m) => a + m.tokens_out, 0);
+    rows.push(['Invocations', `${runs.length} (${tin.toLocaleString()} in, ${tout.toLocaleString()} out tokens)`]);
+  }
+  for (const [k, v] of rows) dl.append(el('dt', null, k), el('dd', null, v));
+  box.appendChild(dl);
+}
+
+function renderLegend() {
+  const box = document.getElementById('legend');
+  box.replaceChildren(el('h2', null, 'Legend'));
+  const list = el('ul', 'legend');
+  for (const [k, v] of Object.entries(PORTAL_COLOURS)) {
+    const li = el('li');
+    li.append(el('span', 'gem ' + k), el('span', null, `${v.name}: ${v.meaning}`));
+    list.appendChild(li);
+  }
+  for (const [k, v] of [['idle', 'Idle: at rest'], ['working', 'Working: swinging, with a progress ring'], ['marker', 'Blocked: red or gold marker overhead']]) {
+    const li = el('li');
+    li.append(el('span', 'dotkey ' + k), el('span', null, v));
+    list.appendChild(li);
+  }
+  box.appendChild(list);
+}
+
+function initUI() {
+  game.onChange = () => { renderQueue(); renderDetail(); };
+  renderLegend();
+}
