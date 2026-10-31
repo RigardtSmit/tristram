@@ -1,0 +1,22 @@
+character: Wirt
+role: DBA
+charter: .claude/agents/wirt.md
+tools: [Read, Write, Edit, Bash, Grep, Glob]
+skills: []
+connectors: []
+knowledge_base:
+  read:
+    - knowledge/standards/database.md
+    - knowledge/stacks/
+    - knowledge/lessons/
+    - ideas/<idea>/brief.md
+    - ideas/<idea>/artifacts/design.md
+    - ideas/<idea>/handovers/
+  write:
+    - ideas/<idea>/artifacts/schema/
+    - ideas/<idea>/decisions/
+    - ideas/<idea>/handovers/
+    - ideas/<idea>/questions/
+checks_owned:
+  - tools/checks/db_check.sh
+lessons_tags: [database, schema]

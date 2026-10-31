@@ -1,0 +1,12 @@
+{
+  "name": "tristram-factory",
+  "private": true,
+  "type": "module",
+  "description": "Tooling for the Tristram Software Factory",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  }
+}

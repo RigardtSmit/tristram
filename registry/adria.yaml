@@ -1,0 +1,24 @@
+character: Adria
+role: UX engineer
+charter: .claude/agents/adria.md
+tools: [Read, Write, Edit, Bash, Grep, Glob]
+skills: []
+connectors: []
+knowledge_base:
+  read:
+    - knowledge/standards/ux.md
+    - knowledge/standards/api.md
+    - knowledge/stacks/
+    - knowledge/lessons/
+    - ideas/<idea>/brief.md
+    - ideas/<idea>/artifacts/design.md
+    - ideas/<idea>/artifacts/backend/api.yaml
+    - ideas/<idea>/handovers/
+  write:
+    - ideas/<idea>/artifacts/ui/
+    - ideas/<idea>/decisions/
+    - ideas/<idea>/handovers/
+    - ideas/<idea>/questions/
+checks_owned:
+  - tools/checks/ui_check.sh
+lessons_tags: [ux, ui, states]

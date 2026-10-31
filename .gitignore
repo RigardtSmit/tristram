@@ -1,0 +1,9 @@
+node_modules/
+.worktrees/
+.factory/
+.claude/settings.local.json
+*.tmp
+
+# Generated global state, main checkout only (SPEC 16.1)
+ceo/queue.json
+knowledge/roster/*.html

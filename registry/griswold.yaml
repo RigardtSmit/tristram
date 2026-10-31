@@ -1,0 +1,24 @@
+character: Griswold
+role: Lead backend engineer
+charter: .claude/agents/griswold.md
+tools: [Read, Write, Edit, Bash, Grep, Glob]
+skills: []
+connectors: []
+knowledge_base:
+  read:
+    - knowledge/standards/api.md
+    - knowledge/standards/database.md
+    - knowledge/stacks/
+    - knowledge/lessons/
+    - ideas/<idea>/brief.md
+    - ideas/<idea>/artifacts/design.md
+    - ideas/<idea>/artifacts/schema/
+    - ideas/<idea>/handovers/
+  write:
+    - ideas/<idea>/artifacts/backend/
+    - ideas/<idea>/decisions/
+    - ideas/<idea>/handovers/
+    - ideas/<idea>/questions/
+checks_owned:
+  - tools/checks/api_check.sh
+lessons_tags: [api, backend, pagination]

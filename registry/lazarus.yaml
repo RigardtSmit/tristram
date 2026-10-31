@@ -1,0 +1,19 @@
+character: Lazarus
+role: Reviewer
+charter: .claude/agents/lazarus.md
+tools: [Read, Write, Bash, Grep, Glob]
+skills: []
+connectors: []
+knowledge_base:
+  read:
+    - knowledge/standards/database.md
+    - knowledge/standards/api.md
+    - knowledge/standards/ux.md
+    - knowledge/standards/testing.md
+    - knowledge/stacks/
+    - knowledge/lessons/
+    - ideas/<idea>/
+  write:
+    - ideas/<idea>/reviews/
+checks_owned: []
+lessons_tags: [review, quality]

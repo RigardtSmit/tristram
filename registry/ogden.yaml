@@ -1,0 +1,17 @@
+character: Ogden
+role: Archivist and documentation
+charter: .claude/agents/ogden.md
+tools: [Read, Write, Edit, Bash, Grep, Glob]
+skills: []
+connectors: []
+knowledge_base:
+  read:
+    - knowledge/lessons/
+    - ideas/<idea>/
+  write:
+    - ideas/<idea>/record/
+    - ideas/<idea>/lessons.md
+    - ideas/<idea>/town-square/
+    - knowledge/lessons/    # only after recorded CEO approval; enforced by the guard hook
+checks_owned: []
+lessons_tags: [record, lessons]

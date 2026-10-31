@@ -1,0 +1,25 @@
+character: Cain
+role: Architect and orchestrator
+charter: .claude/agents/cain.md
+tools: [Read, Write, Bash, Grep, Glob]
+skills: []
+connectors: []
+knowledge_base:
+  read:
+    - knowledge/standards/database.md
+    - knowledge/standards/api.md
+    - knowledge/standards/ux.md
+    - knowledge/standards/testing.md
+    - knowledge/stacks/
+    - knowledge/lessons/
+    - ideas/<idea>/
+  write:
+    - ideas/<idea>/plan.md
+    - ideas/<idea>/artifacts/design.md
+    - ideas/<idea>/artifacts/traceability.md
+    - ideas/<idea>/decisions/
+    - ideas/<idea>/handovers/
+    - ideas/<idea>/changes/
+    - ideas/<idea>/questions/
+checks_owned: []
+lessons_tags: [design, planning, contracts]

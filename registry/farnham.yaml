@@ -1,0 +1,22 @@
+character: Farnham
+role: Test engineer
+charter: .claude/agents/farnham.md
+tools: [Read, Write, Edit, Bash, Grep, Glob]
+skills: []
+connectors: []
+knowledge_base:
+  read:
+    - knowledge/standards/testing.md
+    - knowledge/stacks/
+    - knowledge/lessons/
+    - ideas/<idea>/brief.md
+    - ideas/<idea>/artifacts/
+    - ideas/<idea>/handovers/
+  write:
+    - ideas/<idea>/artifacts/tests/
+    - ideas/<idea>/decisions/
+    - ideas/<idea>/handovers/
+    - ideas/<idea>/questions/
+checks_owned:
+  - tools/checks/test_check.sh
+lessons_tags: [testing, traceability]
