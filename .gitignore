@@ -12,3 +12,4 @@ knowledge/roster/*.html
 tools/map/dist/
 tools/map/local-assets/
 ceo/outbox/
+ceo/queue-index.json
