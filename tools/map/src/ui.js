@@ -1,5 +1,5 @@
 'use strict';
-// Side panel: queue list, selection detail, legend. Buttons are inactive in B1 (mock data).
+// Side panel: queue list, selection detail, legend. Decision buttons work when the map is served by tools/map/serve.mjs.
 
 const STATE_TEXT = { idle: 'Idle', working: 'Working', blocked: 'Blocked' };
 
@@ -11,7 +11,7 @@ function el(tag, cls, text) {
 }
 
 function ago(iso) {
-  const mins = Math.max(0, Math.round((Date.parse('2026-10-31T18:00:00Z') - Date.parse(iso)) / 60000));
+  const mins = Math.max(0, Math.round(((isServed() ? Date.now() : Date.parse('2026-10-31T18:00:00Z')) - Date.parse(iso)) / 60000));
   return mins < 90 ? `${mins} min` : mins < 2880 ? `${Math.round(mins / 60)} h` : `${Math.round(mins / 1440)} d`;
 }
 
@@ -35,6 +35,17 @@ function renderQueue() {
     li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
     ul.appendChild(li);
   }
+}
+
+async function decide(q, option, button) {
+  const out = document.querySelector('#detail .result');
+  button.disabled = true;
+  try {
+    const r = await fetch('/api/decide', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: q.id, option }) });
+    const j = await r.json();
+    if (out) out.textContent = j.message || j.error || '';
+    await pollData();
+  } catch (err) { if (out) out.textContent = 'Could not reach the local server: ' + err.message; button.disabled = false; }
 }
 
 function renderDetail() {
@@ -61,12 +72,15 @@ function renderDetail() {
     const row = el('div', 'opts');
     for (const o of q.options) {
       const b = el('button', 'stone', o.replace(/_/g, ' ').replace(':', ' to '));
-      b.disabled = true;
-      b.title = 'Inactive in B1: decisions are wired in B2';
+      const needsText = o === 'answer' || o === 'new_proposal';
+      b.disabled = !isServed() || needsText;
+      b.title = needsText ? 'Answer this in Claude Code (/questions or /queue)' : isServed() ? 'Carry out this decision' : 'Open the map with tools/map/serve.mjs to decide here';
+      b.addEventListener('click', () => decide(q, o, b));
       row.appendChild(b);
     }
     box.appendChild(row);
-    box.appendChild(el('p', 'note', 'Buttons are inactive in B1. Mock data only.'));
+    box.appendChild(el('p', 'note', isServed() ? 'Choosing an option records your decision in the item's record and carries it out.' : 'Sample or snapshot data: buttons are inactive. Run node tools/map/serve.mjs for the live map.'));
+    box.appendChild(el('p', 'note result', ''));
     return;
   }
   if (sel.kind === 'barb') {

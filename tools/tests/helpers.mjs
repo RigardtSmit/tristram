@@ -18,6 +18,7 @@ export function factory() {
   fs.cpSync(path.join(repoRoot, 'tools'), path.join(root, 'tools'), { recursive: true, filter: (s) => !s.includes('local-assets') && !s.includes(`${path.sep}dist`) });
   fs.mkdirSync(path.join(root, 'knowledge', 'lessons'), { recursive: true });
   fs.cpSync(path.join(repoRoot, 'config'), path.join(root, 'config'), { recursive: true });
+  fs.cpSync(path.join(repoRoot, 'registry'), path.join(root, 'registry'), { recursive: true });
   fs.symlinkSync(path.join(repoRoot, 'node_modules'), path.join(root, 'node_modules'), 'junction');
   const spawn = { spawnSync };
   const tool = (script, ...args) => spawnSync(process.execPath, ['--no-warnings', path.join(root, 'tools', script), ...args], { encoding: 'utf8' });

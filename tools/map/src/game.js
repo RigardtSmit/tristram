@@ -1,5 +1,5 @@
 'use strict';
-// Game state, input and the render loop. Reads FACTORY_DATA only (mock files in B1).
+// Game state, input and the render loop. Reads FACTORY_DATA (mock or live files); when served over http it polls /api/data.
 
 const CHAR_NAMES = ['cain', 'wirt', 'griswold', 'adria', 'farnham', 'lazarus', 'ogden'];
 const DISPLAY = {
@@ -433,6 +433,24 @@ function fitCanvas() {
   el.style.height = Math.floor(w * VH / VW) + 'px';
 }
 
+// A map opened from the local server (serve.mjs) follows the factory's files and can carry out the CEO's decisions.
+function isServed() { return location.protocol === 'http:' && FACTORY_DATA_SOURCE() === 'live'; }
+function FACTORY_DATA_SOURCE() { return window.FACTORY_DATA && window.FACTORY_DATA.source; }
+
+function refreshData(data) {
+  game.data = data;
+  game.state = deriveState(data);
+  if (game.sel && game.sel.kind === 'portal' && !game.state.portals.some((p) => p.id === game.sel.id)) game.sel = null;
+  game.onChange();
+}
+
+async function pollData() {
+  try {
+    const r = await fetch('/api/data', { cache: 'no-store' });
+    if (r.ok) refreshData(await r.json());
+  } catch { /* the server is gone; the map keeps what it has */ }
+}
+
 function startGame(data) {
   game.data = data;
   game.screen = (() => { const c = document.getElementById('screen'); const g = c.getContext('2d'); g.imageSmoothingEnabled = false; return { c, g }; })();
@@ -463,4 +481,5 @@ function startGame(data) {
   }
   requestAnimationFrame(frame);
   game.onChange();
+  if (isServed()) setInterval(pollData, 3000);
 }
