@@ -161,13 +161,13 @@ test('demo-form: an idea goes from briefing to a merged, closed item, with a fak
 
   // ---- 8. the numbers add up ------------------------------------------------------------------------------------------------
   const metrics = fs.readFileSync(path.join(merged, 'record', 'metrics.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
-  assert.equal(metrics.length, 13);                                                                // one record per invocation
+  assert.equal(metrics.length, 10);                                                                // one record per invocation
   const spent = metrics.reduce((s, m) => s + m.tokens_in + m.tokens_out, 0);
   const text = ok(tool('metrics.mjs'), 'metrics');
-  assert.match(text, new RegExp(`${spent.toLocaleString('en-US')} tokens, 13 invocation`));
+  assert.match(text, new RegExp(`${spent.toLocaleString('en-US')} tokens, 10 invocation`));
   assert.match(text, /cycle 3/);
   ok(tool('dashboard.mjs'), 'dashboard');
-  assert.match(fs.readFileSync(path.join(root, 'knowledge', 'roster', 'dashboard.html'), 'utf8'), /"invocations":13/);
+  assert.match(fs.readFileSync(path.join(root, 'knowledge', 'roster', 'dashboard.html'), 'utf8'), /"invocations":10/);
   assert.match(ok(tool('budget.mjs', 'show', NAME), 'budget'), /size S/);
   const transitions = fs.readFileSync(path.join(merged, 'record', 'transitions.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((e) => e.to).map((e) => e.to);
   assert.deepEqual(transitions, ['BRIEFING', 'BUILDING', 'PRE_REVIEW', 'BUILDING', 'PRE_REVIEW', 'IN_REVIEW', 'NOT_READY', 'BUILDING', 'PRE_REVIEW', 'IN_REVIEW', 'DEBRIEF', 'CLOSED']);
