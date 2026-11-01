@@ -2,8 +2,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseStatus } from './idea.mjs';
+import { activeFor, rerunAreas } from './change.mjs';
 
-export const AREAS = { schema: 'wirt', api: 'griswold', ui: 'adria', tests: 'farnham' };
+import { AREAS } from './areas.mjs';
+export { AREAS };
 const CHARACTERS = ['cain', 'wirt', 'griswold', 'adria', 'farnham', 'lazarus', 'ogden'];
 
 function table(text, heading) {
@@ -32,6 +34,10 @@ export function validatePlan(idea) {
   if (plan.cycle !== Number(st.cycle)) problems.push(`plan.md is for cycle ${plan.cycle} but the idea is in cycle ${st.cycle}`);
   if (!plan.areas.length) problems.push('plan.md lists no Areas');
   for (const a of plan.areas) if (!AREAS[a]) problems.push(`unknown area "${a}". Known: ${Object.keys(AREAS).join(', ')}`);
+  for (const cr of activeFor(idea, plan.cycle)) {
+    const allowed = rerunAreas(cr);
+    for (const a of plan.areas.filter((x) => AREAS[x] && !allowed.includes(x))) problems.push(`area "${a}" is not affected by ${cr.id}; only ${allowed.join(', ') || 'nothing'} re-run (SPEC 8.1)`);
+  }
   if (!plan.work) problems.push('plan.md has no "Work items" table');
   else {
     const rows = plan.work.filter((r) => r[0] && r[2]);

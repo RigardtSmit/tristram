@@ -144,3 +144,39 @@ test('plan validation catches an unusable plan', () => {
   assert.match(r.stdout, /area "tests" is in the plan but farnham has no work item/);
   assert.match(x.tool('plan.mjs', 'validate', 'demo').stdout, /area "ui" is in the plan but adria has no work item/);
 });
+
+test('a change request changes one field: only the affected owners re-run, and the brief is versioned', () => {
+  const x = factory(); buildCycleOne(x);
+  assert.equal(x.tool('cycle.mjs', 'end', 'demo').status, 1);                      // cycle 1 ends with the seeded defect
+  x.f('artifacts/backend/impl.js', 'export const add = (a, b) => a + b;\n');
+  x.tool('cycle.mjs', 'start', 'demo'); x.f('plan.md', PLAN(2, 'api'));
+  assert.equal(x.tool('cycle.mjs', 'end', 'demo').status, 0);                      // clean: PRE_REVIEW, cycle 2
+  x.f('artifacts/traceability.md', '| Requirement | Acceptance criteria | Design | Schema | API | UI | Tests |\n|---|---|---|---|---|---|---|\n| REQ-01 | AC-01 | d | leads | POST /leads | form | leads.test.js |\n');
+  assert.match(x.tool('change.mjs', 'impact', 'demo', 'REQ-01').stdout, /API\s+POST \/leads/);
+
+  const open = x.tool('change.mjs', 'open', 'demo', '--title', 'Leads carry a phone number', '--why', 'Sales wants to call back', '--by', 'ceo');
+  assert.match(open.stdout, /CR-001/);
+  assert.match(x.tool('change.mjs', 'submit', 'demo', 'CR-001').stderr, /change map has no rows/);
+  const cr = path.join(x.dir, 'changes', 'CR-001.md');
+  fs.writeFileSync(cr, fs.readFileSync(cr, 'utf8').replace('|---|---|---|---|---|\n', '|---|---|---|---|---|\n| REQ-01 | email required | email, phone optional | Cain | yes |\n| backend/impl | add(a, b) | add(a, b), phone | Griswold | yes |\n| ui/form | email field | email and phone field | Adria | no |\n'));
+  assert.equal(x.tool('change.mjs', 'submit', 'demo', 'CR-001').status, 0);
+  const q = JSON.parse(fs.readFileSync(path.join(x.root, 'ceo', 'queue.json'), 'utf8')).find((e) => e.type === 'CHANGE_REQUEST');
+  assert.deepEqual(q.options, ['approve', 'reject', 'narrow']);
+  assert.match(x.tool('change.mjs', 'decide', 'demo', 'CR-001', 'approve', '--by', 'cain').stderr, /decided by the CEO/);
+
+  const d = x.tool('queue.mjs', 'decide', q.id, 'approve');
+  assert.equal(d.status, 0, d.stderr);
+  assert.match(d.stdout, /re-run api/);
+  assert.deepEqual([x.status().state, x.status().cycle, x.status().brief], ['BUILDING', '3', 'v2 accepted']);
+  const brief = fs.readFileSync(path.join(x.dir, 'brief.md'), 'utf8');
+  assert.match(brief, /\*\*Version:\*\* v2/);
+  assert.match(brief, /- v2: CR-001 Leads carry a phone number \(changes REQ-01\)/);
+
+  const st = x.tool('cycle.mjs', 'start', 'demo');
+  assert.match(st.stdout, /Change CR-001 .* Cain plans only: api/);
+  x.f('plan.md', PLAN(3, 'api, ui'));                                               // ui is not affected
+  assert.match(x.tool('plan.mjs', 'validate', 'demo').stdout, /area "ui" is not affected by CR-001; only api re-run/);
+  x.f('plan.md', PLAN(3, 'api'));
+  const v = x.tool('plan.mjs', 'validate', 'demo');
+  assert.equal(v.status, 0, v.stdout + v.stderr);
+});

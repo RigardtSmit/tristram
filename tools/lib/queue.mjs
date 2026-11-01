@@ -8,6 +8,7 @@ import { current as currentEnv } from './env.mjs';
 import { readAll as readQuestions } from './questions.mjs';
 import { openDefectList } from './defects.mjs';
 import { open as openFlaky } from './flaky.mjs';
+import { list as listChanges, validate as validateChange, rerunAreas } from './change.mjs';
 import { crossedNow, usage, villageStatus } from './budget.mjs';
 
 const rel = (idea, p) => path.relative(idea.dir, p).replace(/\\/g, '/');
@@ -58,6 +59,11 @@ export function collect(idea) {
     const warn = crossedNow(idea).filter((c) => c.name === 'gold' || c.name === 'check').pop();
     if (warn) out.push({ key: `budget-${warn.name}`, item: folder, type: 'BUDGET_WARNING', colour: 'gold', raised: warn.ts,
       summary: `${st.id} ${st.name} has used ${warn.pct}% of its budget${warn.name === 'check' ? '; Cain must check the remaining cycles can finish' : ''}`, options: ['acknowledge', 'increase_budget'], detail: 'record/budget.json' });
+  }
+
+  for (const cr of listChanges(idea).filter((c) => c.status === 'PROPOSED')) {
+    out.push({ key: `cr-${cr.id}`, item: folder, type: 'CHANGE_REQUEST', colour: 'blue', raised: cr.raised || nowIso(),
+      summary: `${cr.id} ${cr.title}: brief ${cr.briefFrom} -> ${cr.briefTo}, re-run ${rerunAreas(cr).join(', ') || 'none'}, ${cr.cycles} cycle(s)`, options: ['approve', 'reject', 'narrow'], detail: `changes/${cr.id}.md`, location: 'cain' });
   }
 
   for (const q of readQuestions(idea).filter((x) => x.pending && x.decider === 'ceo')) {

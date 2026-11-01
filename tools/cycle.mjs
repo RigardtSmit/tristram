@@ -17,6 +17,7 @@ import { needsReview } from './lib/questions.mjs';
 import * as E from './lib/env.mjs';
 import * as flaky from './lib/flaky.mjs';
 import { buildQueue } from './lib/queue.mjs';
+import { activeFor, rerunAreas } from './lib/change.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const CHECKS = {
@@ -89,6 +90,7 @@ try {
     fs.mkdirSync(path.join(idea.dir, 'cycles', `cycle-${cycle}`), { recursive: true });
     logEvent(idea.dir, 'factory', `cycle ${cycle} started`);
     console.log(`Cycle ${cycle} of ${MAX_CYCLES} for ${name} (${st.id}), state BUILDING.`);
+    for (const cr of activeFor(idea, cycle)) console.log(`Change ${cr.id} (${cr.title}) is built in this cycle. Cain plans only: ${rerunAreas(cr).join(', ') || 'nothing'}. Brief ${cr.briefTo}.`);
     const problems = validatePlan(idea);
     console.log(problems.length ? `Plan: Cain must write plan.md for cycle ${cycle}:\n  - ${problems.join('\n  - ')}` : `Plan: ok, areas ${readPlan(idea).areas.join(', ')}.`);
     const open = openDefectList(idea);
