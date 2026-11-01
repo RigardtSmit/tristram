@@ -11,3 +11,4 @@ knowledge/roster/*.html
 # Built map bundle
 tools/map/dist/
 tools/map/local-assets/
+ceo/outbox/

@@ -3,8 +3,9 @@ import { CHARACTERS, loadRegistry, loadAgent, toolList } from './lib/registry.mj
 
 const args = process.argv.slice(2);
 if (args.includes('--html')) {
-  console.error('roster --html is built in phase A13. Not available yet.');
-  process.exit(1);
+  const { writeRoster } = await import('./lib/roster-html.mjs');
+  console.log(`Wrote ${writeRoster()}`);
+  process.exit(0);
 }
 const name = args.find((a) => !a.startsWith('--'))?.toLowerCase();
 const registry = loadRegistry();
