@@ -16,6 +16,7 @@ export function factory() {
   fs.writeFileSync(path.join(dir, 'brief.md'), fill(tpl('brief.md')).replace('| REQ-01 | |', '| REQ-01 | Visitors can join the list |').replace('| AC-01 | | REQ-01 |', '| AC-01 | A valid email is stored | REQ-01 |'));
   fs.writeFileSync(path.join(dir, 'decisions', 'ADR-001-stack.md'), fill(tpl('ADR-001-stack.md')));
   fs.cpSync(path.join(repoRoot, 'tools'), path.join(root, 'tools'), { recursive: true, filter: (s) => !s.includes('local-assets') && !s.includes(`${path.sep}dist`) });
+  fs.mkdirSync(path.join(root, 'knowledge', 'lessons'), { recursive: true });
   fs.cpSync(path.join(repoRoot, 'config'), path.join(root, 'config'), { recursive: true });
   fs.symlinkSync(path.join(repoRoot, 'node_modules'), path.join(root, 'node_modules'), 'junction');
   const spawn = { spawnSync };

@@ -7,6 +7,7 @@ import path from 'node:path';
 import { buildQueue } from './lib/queue.mjs';
 import { findIdea, transition, acceptStack, logEvent } from './lib/idea.mjs';
 import * as E from './lib/env.mjs';
+import { decide as decideLesson } from './lib/lessons.mjs';
 import { decide as decideChange } from './lib/change.mjs';
 import { increase, config } from './lib/budget.mjs';
 
@@ -40,6 +41,7 @@ try {
     let did = 'recorded; the character or Cain acts on it';
     if (option === 'stop') { transition(idea, 'STOPPED', { actor: 'ceo', note: `CEO stopped the item (${id})` }); did = 'item STOPPED (branch kept, not merged)'; }
     else if (option === 'resume_when_fixed') { const r = E.resume(idea, { by: 'ceo' }); did = `resumed at cycle ${r.cycle}`; }
+    else if (entry.type === 'LESSON_APPROVAL') { const r = decideLesson(idea, entry.summary.match(/^LC-\d+/)[0], option, { by: 'ceo', note: opt('--note'), edits: { title: opt('--title'), rule: opt('--rule'), tags: opt('--tags') } }); did = `${r.status}${r.lesson ? ` as ${r.lesson}` : ''}`; }
     else if (entry.type === 'CHANGE_REQUEST') { const r = decideChange(idea, entry.detail.match(/CR-\d+/)[0], option, { by: 'ceo', note: opt('--note') }); did = `${r.status}${r.areas ? `; re-run ${r.areas.join(', ') || 'nothing'}; item is ${r.state}` : ''}`; }
     else if (option === 'increase_budget') {
       const t = config().sizes[String(idea.status.size).toUpperCase()] ?? { tokens: 0, hours: 0 };

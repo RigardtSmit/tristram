@@ -9,6 +9,7 @@ import { readAll as readQuestions } from './questions.mjs';
 import { openDefectList } from './defects.mjs';
 import { open as openFlaky } from './flaky.mjs';
 import { list as listChanges, validate as validateChange, rerunAreas } from './change.mjs';
+import { candidates as lessonCandidates } from './lessons.mjs';
 import { crossedNow, usage, villageStatus } from './budget.mjs';
 
 const rel = (idea, p) => path.relative(idea.dir, p).replace(/\\/g, '/');
@@ -64,6 +65,13 @@ export function collect(idea) {
   for (const cr of listChanges(idea).filter((c) => c.status === 'PROPOSED')) {
     out.push({ key: `cr-${cr.id}`, item: folder, type: 'CHANGE_REQUEST', colour: 'blue', raised: cr.raised || nowIso(),
       summary: `${cr.id} ${cr.title}: brief ${cr.briefFrom} -> ${cr.briefTo}, re-run ${rerunAreas(cr).join(', ') || 'none'}, ${cr.cycles} cycle(s)`, options: ['approve', 'reject', 'narrow'], detail: `changes/${cr.id}.md`, location: 'cain' });
+  }
+
+  if (st.state === 'DEBRIEF') {
+    for (const c of lessonCandidates(idea).filter((x) => x.status === 'PENDING' && x.lazarus)) {
+      out.push({ key: `lesson-${c.id}`, item: folder, type: 'LESSON_APPROVAL', colour: 'blue', raised: lastTransition(idea, 'DEBRIEF') || nowIso(),
+        summary: `${c.id} ${c.title}: Rule: ${c.rule}. Lazarus: ${c.lazarus}`.slice(0, 220), options: ['approve', 'reject'], detail: 'lessons.md', location: 'ogden' });
+    }
   }
 
   for (const q of readQuestions(idea).filter((x) => x.pending && x.decider === 'ceo')) {
