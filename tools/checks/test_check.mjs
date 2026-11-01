@@ -1,11 +1,12 @@
 // Farnham's check (SPEC 11.2): the tests run, every acceptance criterion has a test, and every test traces to a
-// criterion. Exit 0 pass, 1 defect, 2 environment failure. (Rejected-pattern flags arrive in phase A8.)
+// criterion. Exit 0 pass, 1 defect, 2 environment failure. Rejected patterns are flagged for Lazarus, never failed (A8).
 // Usage: node test_check.mjs <idea-name>
 import fs from 'node:fs';
 import path from 'node:path';
 import { findIdea, parseStatus } from '../lib/idea.mjs';
 import { readFactoryJson, run, tail } from '../lib/run.mjs';
 import { nowIso } from '../lib/paths.mjs';
+import { scanFile, inventoryOf, compareInventory } from '../lib/testquality.mjs';
 
 const name = process.argv[2];
 if (!name) { console.error('usage: test_check <idea-name>'); process.exit(2); }
@@ -52,6 +53,30 @@ else {
   if (!criteria.length) fail('the brief has acceptance criteria', 'brief.md lists no AC-NN rows');
   else if (uncovered.length) fail('every acceptance criterion has a test', `no test for: ${uncovered.join(', ')}`);
   else pass(`all ${criteria.length} acceptance criteria have a test`);
+}
+
+// -- test quality flags (SPEC 11.2): recorded for Lazarus, never a verdict ----------------------------------------
+if (testFiles.length) {
+  const st = parseStatus(fs.readFileSync(path.join(idea.dir, 'status.md'), 'utf8'));
+  const cycle = Math.max(1, Number(st.cycle || 1)), cdir = path.join(idea.dir, 'cycles', `cycle-${cycle}`);
+  fs.mkdirSync(cdir, { recursive: true });
+  const waiverFile = path.join(idea.dir, 'record', 'test-waivers.md');
+  const waivers = fs.existsSync(waiverFile) ? fs.readFileSync(waiverFile, 'utf8').split('\n').filter((l) => /approved by cain/i.test(l)) : [];
+  const rel = (f) => path.relative(dir, f).replace(/\\/g, '/');
+  let flags = [], inventory = {};
+  for (const f of testFiles) { const text = fs.readFileSync(f, 'utf8'); flags.push(...scanFile(rel(f), text)); Object.assign(inventory, inventoryOf(rel(f), text)); }
+  const prevDirs = fs.readdirSync(path.join(idea.dir, 'cycles')).filter((d) => /^cycle-\d+$/.test(d) && Number(d.slice(6)) < cycle).sort((a, b) => Number(b.slice(6)) - Number(a.slice(6)));
+  const prevInv = prevDirs.map((d) => path.join(idea.dir, 'cycles', d, 'test-inventory.json')).find((p) => fs.existsSync(p));
+  if (prevInv) flags.push(...compareInventory(JSON.parse(fs.readFileSync(prevInv, 'utf8')), inventory));
+  const waived = (fl) => ['skipped', 'deleted-test', 'assertion-changed'].includes(fl.rule) && waivers.some((w) => w.includes(fl.file) && (w.includes(`::${fl.test}`) || w.includes(`${fl.file}::*`)));
+  flags = flags.filter((fl) => !waived(fl));
+  const flagFile = path.join(cdir, 'test-flags.json');
+  const old = fs.existsSync(flagFile) ? JSON.parse(fs.readFileSync(flagFile, 'utf8')).flags : [];
+  flags = flags.map((fl) => ({ ...fl, disposition: old.find((o) => o.id === fl.id)?.disposition ?? null }));
+  fs.writeFileSync(flagFile, JSON.stringify({ cycle, flags }, null, 2) + '\n');
+  fs.writeFileSync(path.join(cdir, 'test-inventory.json'), JSON.stringify(inventory, null, 2) + '\n');
+  for (const fl of flags) results.push({ ok: true, warn: true, name: `test-quality flag ${fl.id} (${fl.rule}) ${fl.file}${fl.line ? `:${fl.line}` : ''} "${fl.test}"`, detail: `${fl.detail}. Lazarus reviews it` });
+  if (!flags.length) pass('no test-quality flags');
 }
 
 // -- run them ----------------------------------------------------------------------------------------------------

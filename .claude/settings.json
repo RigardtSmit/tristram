@@ -42,6 +42,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/tools/hooks/guard.mjs\"",
+            "timeout": 30
+          }
+        ]
       }
     ]
   }

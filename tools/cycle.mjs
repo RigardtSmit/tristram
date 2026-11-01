@@ -152,7 +152,8 @@ try {
       finish(2);
     }
 
-    const open = openDefectList(idea);
+    // only the pre-review checks decide here; Lazarus's own findings are closed by his next verdict
+    const open = openDefectList(idea).filter((d) => d.check.endsWith('_check'));
     if (!open.length) {
       console.log(`\nAll checks passed in cycle ${cycle}. ${name} stays PRE_REVIEW, ready for Lazarus.`);
       finish(0);
