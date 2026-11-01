@@ -74,7 +74,8 @@ export function library(root = repoRoot) {
 }
 
 // The CEO decides a candidate. Approval writes the lesson to the library and indexes it; nothing else does.
-export function decide(idea, id, decision, { by, note, edits = {}, root = repoRoot }) {
+// The lesson is written in the idea's own checkout (its worktree) and reaches main when the idea merges.
+export function decide(idea, id, decision, { by, note, edits = {}, root = idea.root }) {
   if (by !== 'ceo') throw new Error('a lesson becomes a rule only when the CEO approves it (--by ceo)');
   if (!['approve', 'reject'].includes(decision)) throw new Error('decision is approve or reject (edit with --title/--rule/--tags, then approve)');
   const c = find(idea, id);

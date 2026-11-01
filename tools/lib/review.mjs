@@ -13,11 +13,19 @@ const read = (f) => fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
 const stOf = (idea) => parseStatus(read(path.join(idea.dir, 'status.md')));
 const cdir = (idea, c) => path.join(idea.dir, 'cycles', `cycle-${c}`);
 
+// test_check only runs in a cycle that plans the tests area, so the flags in force are those of the latest cycle that ran it.
+function flagCycle(idea, cycle) {
+  for (let c = cycle; c >= 1; c--) if (fs.existsSync(path.join(cdir(idea, c), 'test-flags.json'))) return c;
+  return cycle;
+}
 export function flagsOf(idea, cycle) {
-  const f = path.join(cdir(idea, cycle), 'test-flags.json');
+  const f = path.join(cdir(idea, flagCycle(idea, cycle)), 'test-flags.json');
   return fs.existsSync(f) ? JSON.parse(read(f)).flags : [];
 }
-function saveFlags(idea, cycle, flags) { writeAtomic(path.join(cdir(idea, cycle), 'test-flags.json'), JSON.stringify({ cycle, flags }, null, 2) + '\n'); }
+function saveFlags(idea, cycle, flags) {
+  const c = flagCycle(idea, cycle);
+  writeAtomic(path.join(cdir(idea, c), 'test-flags.json'), JSON.stringify({ cycle: c, flags }, null, 2) + '\n');
+}
 
 // The latest result of each check in this cycle's checks.md.
 function latestResults(idea, cycle) {

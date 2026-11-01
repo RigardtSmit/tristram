@@ -10,6 +10,6 @@
     "yaml": "^2.9.1"
   },
   "scripts": {
-    "test": "node --test tools/tests/idea.test.mjs tools/tests/questions.test.mjs tools/tests/db.test.mjs tools/tests/cycle.test.mjs tools/tests/env.test.mjs tools/tests/budget.test.mjs tools/tests/quality.test.mjs tools/tests/lessons.test.mjs tools/tests/townsquare.test.mjs tools/tests/notify.test.mjs tools/tests/roster.test.mjs tools/tests/map.test.mjs tools/tests/dashboard.test.mjs"
+    "test": "node --test tools/tests/idea.test.mjs tools/tests/questions.test.mjs tools/tests/db.test.mjs tools/tests/cycle.test.mjs tools/tests/env.test.mjs tools/tests/budget.test.mjs tools/tests/quality.test.mjs tools/tests/lessons.test.mjs tools/tests/townsquare.test.mjs tools/tests/notify.test.mjs tools/tests/roster.test.mjs tools/tests/map.test.mjs tools/tests/dashboard.test.mjs tools/tests/e2e.test.mjs"
   }
 }
