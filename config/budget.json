@@ -1,0 +1,10 @@
+{
+  "sizes": {
+    "S": { "tokens": 1000000, "hours": 2 },
+    "M": { "tokens": 4000000, "hours": 6 },
+    "L": { "tokens": 12000000, "hours": 16 }
+  },
+  "cycle_split": { "1": 0.6, "2": 0.2, "3": 0.1, "reserve": 0.1 },
+  "thresholds": { "gold": 0.7, "check": 0.9, "exhausted": 1.0 },
+  "village_daily": { "invocations": 150, "tokens": 20000000 }
+}

@@ -20,6 +20,29 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/tools/hooks/subagent-stop.mjs\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/tools/hooks/invoke-gate.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }

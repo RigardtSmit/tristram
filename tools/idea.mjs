@@ -32,7 +32,7 @@ try {
     console.log(`  ADR-001:  ${d.adrStatus}`);
     console.log(`  Build gate: ${d.gate.ok ? 'open' : 'closed: ' + d.gate.problems.join('; ')}`);
     console.log(`  Open defects: ${d.defects.length}${d.defects.length ? '\n' + d.defects.map((l) => '    ' + l.trim()).join('\n') : ''}`);
-    console.log('  Budget:   not set yet (budgets arrive in phase A6)');
+    { const { usage } = await import('./lib/budget.mjs'); const u = usage(idea); console.log(u.ceilings ? `  Budget:   ${u.ceilings.size}, ${Math.round(u.pct * 100)}% used (${u.tokens} tokens, ${u.hours.toFixed(1)} h)` : '  Budget:   no size tier set (node tools/budget.mjs set-size)'); }
     console.log('  Last log entries:');
     for (const l of d.log) console.log(`    ${l}`);
   } else if (cmd === 'gate') {

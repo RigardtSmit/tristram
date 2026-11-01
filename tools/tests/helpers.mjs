@@ -16,11 +16,13 @@ export function factory() {
   fs.writeFileSync(path.join(dir, 'brief.md'), fill(tpl('brief.md')).replace('| REQ-01 | |', '| REQ-01 | Visitors can join the list |').replace('| AC-01 | | REQ-01 |', '| AC-01 | A valid email is stored | REQ-01 |'));
   fs.writeFileSync(path.join(dir, 'decisions', 'ADR-001-stack.md'), fill(tpl('ADR-001-stack.md')));
   fs.cpSync(path.join(repoRoot, 'tools'), path.join(root, 'tools'), { recursive: true, filter: (s) => !s.includes('local-assets') && !s.includes(`${path.sep}dist`) });
+  fs.cpSync(path.join(repoRoot, 'config'), path.join(root, 'config'), { recursive: true });
   fs.symlinkSync(path.join(repoRoot, 'node_modules'), path.join(root, 'node_modules'), 'junction');
+  const spawn = { spawnSync };
   const tool = (script, ...args) => spawnSync(process.execPath, ['--no-warnings', path.join(root, 'tools', script), ...args], { encoding: 'utf8' });
   const f = (rel, text) => { const p = path.join(dir, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); };
   const status = () => Object.fromEntries([...fs.readFileSync(path.join(dir, 'status.md'), 'utf8').matchAll(/^([a-z_]+): (.*)$/gm)].map((m) => [m[1], m[2]]));
-  return { root, dir, tool, f, status };
+  return { root, dir, tool, f, status, spawn };
 }
 
 export const PLAN = (cycle, areas = 'schema, api, ui, tests') => `# Plan\n\n**Cycle:** ${cycle}\n**Areas:** ${areas}\n\n## Work items\n\n| ID | Character | Work | Needs |\n|---|---|---|---|\n| W-01 | wirt | leads table | brief |\n| W-02 | griswold | POST and GET /leads | schema |\n| W-03 | adria | sign-up form | api.yaml |\n| W-04 | farnham | tests for AC-01 | api.yaml |\n\n## Dependencies\n\n| Artifact | Needed by | From | At contract version |\n|---|---|---|---|\n| schema | griswold | wirt | FROZEN v1 |\n| api.yaml | adria, farnham | griswold | FROZEN v1 |\n\n## Parallel steps\n\n- Adria and Farnham start once api.yaml is frozen.\n`;

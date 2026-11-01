@@ -7,6 +7,7 @@ import path from 'node:path';
 import { buildQueue } from './lib/queue.mjs';
 import { findIdea, transition, acceptStack, logEvent } from './lib/idea.mjs';
 import * as E from './lib/env.mjs';
+import { increase, config } from './lib/budget.mjs';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -33,10 +34,18 @@ try {
     if (!id || !option) fail('usage: decide <CQ-id> <option>');
     const entry = buildQueue().find((e) => e.id === id) || fail(`no queue item ${id}`);
     if (!entry.options.includes(option)) fail(`"${option}" is not an option for ${id}. Options: ${entry.options.join(', ')}`);
+    if (entry.idea === '_village') { console.log(`${id}: acknowledged. The cap resets at midnight UTC.`); process.exit(0); }
     const idea = findIdea(entry.idea);
     let did = 'recorded; the character or Cain acts on it';
     if (option === 'stop') { transition(idea, 'STOPPED', { actor: 'ceo', note: `CEO stopped the item (${id})` }); did = 'item STOPPED (branch kept, not merged)'; }
     else if (option === 'resume_when_fixed') { const r = E.resume(idea, { by: 'ceo' }); did = `resumed at cycle ${r.cycle}`; }
+    else if (option === 'increase_budget') {
+      const t = config().sizes[String(idea.status.size).toUpperCase()] ?? { tokens: 0, hours: 0 };
+      const add = { tokens: Number(opt('--tokens') || t.tokens / 2), hours: Number(opt('--hours') || t.hours / 2) };
+      increase(idea, add);
+      if (idea.status.state === 'BUDGET_EXHAUSTED') transition(idea, 'BUILDING', { actor: 'ceo', note: 'budget increased' });
+      did = `budget raised by ${add.tokens} tokens, ${add.hours} h (default: half the tier)`;
+    }
     else if (/^approve_option_[ab]$/.test(option)) { acceptStack(idea, 'ceo', option.slice(-1).toUpperCase()); did = 'ADR-001 accepted'; }
     const rec = path.join(idea.dir, 'record', 'ceo-decisions.md');
     fs.appendFileSync(rec, `- ${new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')} ${id} ${entry.type}: ${option}${opt('--note') ? ` (${opt('--note')})` : ''}\n`);

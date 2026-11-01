@@ -13,6 +13,9 @@ brief: none
 checkpoint: none
 handovers: none
 env_block: none
+size: none
+budget_extra_tokens: 0
+budget_extra_hours: 0
 created: {{created}}
 
 ## History

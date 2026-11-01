@@ -8,6 +8,7 @@ import { current as currentEnv } from './env.mjs';
 import { readAll as readQuestions } from './questions.mjs';
 import { openDefectList } from './defects.mjs';
 import { open as openFlaky } from './flaky.mjs';
+import { crossedNow, usage, villageStatus } from './budget.mjs';
 
 const rel = (idea, p) => path.relative(idea.dir, p).replace(/\\/g, '/');
 const readIf = (f) => (fs.existsSync(f) ? fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n') : null);
@@ -49,6 +50,16 @@ export function collect(idea) {
       summary: `${f.check} passed only after ${f.retries} retr${f.retries === 1 ? 'y' : 'ies'} in cycle ${f.cycle} of ${st.id} ${st.name}`, options: ['acknowledge'], detail: `record/flaky.jsonl` });
   }
 
+  if (st.state === 'BUDGET_EXHAUSTED') {
+    const u = usage(idea);
+    out.push({ key: 'budget-exhausted', item: folder, type: 'BUDGET_EXHAUSTED', colour: 'blue', raised: lastTransition(idea, 'BUDGET_EXHAUSTED') || nowIso(),
+      summary: `${st.id} ${st.name} spent its ${u.ceilings.size} budget (${Math.round(u.pct * 100)}%: ${u.tokens} tokens, ${u.hours.toFixed(1)} h)`, options: ['increase_budget', 'reduce_scope', 'stop'], detail: 'record/budget.json' });
+  } else if (['BUILDING', 'PRE_REVIEW', 'IN_REVIEW'].includes(st.state)) {
+    const warn = crossedNow(idea).filter((c) => c.name === 'gold' || c.name === 'check').pop();
+    if (warn) out.push({ key: `budget-${warn.name}`, item: folder, type: 'BUDGET_WARNING', colour: 'gold', raised: warn.ts,
+      summary: `${st.id} ${st.name} has used ${warn.pct}% of its budget${warn.name === 'check' ? '; Cain must check the remaining cycles can finish' : ''}`, options: ['acknowledge', 'increase_budget'], detail: 'record/budget.json' });
+  }
+
   for (const q of readQuestions(idea).filter((x) => x.pending && x.decider === 'ceo')) {
     out.push({ key: `q-${q.id}`, item: folder, type: 'QUESTION', colour: 'blue', raised: q.raised,
       summary: `${q.id} from ${q.by}: ${q.question}`.slice(0, 220), options: q.blocking ? ['answer'] : ['answer', 'accept_assumption'], detail: `questions/${q.file}`, location: q.by });
@@ -59,6 +70,9 @@ export function collect(idea) {
 export function buildQueue(root = repoRoot) {
   const ideas = listIdeas(root);
   const entries = ideas.flatMap((i) => collect(i).map((e) => ({ ...e, idea: i.name })));
+  const v = villageStatus(root);
+  if (v.capped) entries.push({ key: `daily-cap-${v.day}`, item: 'village', type: 'DAILY_CAP', colour: 'red', raised: v.raised, idea: '_village', location: 'cain',
+    summary: `Daily cap reached: ${v.invocations} invocations, ${v.tokens} tokens today. New invocations are paused`, options: ['acknowledge'], detail: 'config/budget.json' });
   const idxFile = path.join(root, 'ceo', 'queue-index.json');
   const idx = fs.existsSync(idxFile) ? JSON.parse(fs.readFileSync(idxFile, 'utf8')) : { counter: {}, ids: {} };
   for (const e of entries) {
