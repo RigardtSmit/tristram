@@ -19,7 +19,9 @@ try {
   if (st.state !== 'CLOSED') fail(`${name} is ${st.state}. Only a CLOSED item merges${st.state === 'STOPPED' ? '; a STOPPED item keeps its branch and is not merged' : ''}`);
   if (idea.root === repoRoot) fail(`${name} is already in the main checkout`);
   if (git(['rev-parse', '--abbrev-ref', 'HEAD']) !== 'main') fail('run from the main checkout, on branch main');
-  if (git(['status', '--porcelain', '--untracked-files=no'])) fail('the main checkout has uncommitted changes; commit or stash them first');
+  const dirty = git(['status', '--porcelain', '--untracked-files=no']);
+  if (dirty) fail(`the main checkout has uncommitted changes; commit or stash them first:
+${dirty}`);
   if (git(['status', '--porcelain'], idea.root)) {
     logEvent(idea.dir, 'factory', 'final checkpoint before merge');
     git(['add', '-A'], idea.root);
