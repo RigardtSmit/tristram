@@ -17,6 +17,7 @@ import { needsReview } from './lib/questions.mjs';
 import * as E from './lib/env.mjs';
 import * as flaky from './lib/flaky.mjs';
 import { buildQueue } from './lib/queue.mjs';
+import { direction } from './lib/townsquare.mjs';
 import { forPlan } from './lib/lessons.mjs';
 import { activeFor, rerunAreas } from './lib/change.mjs';
 
@@ -94,6 +95,8 @@ try {
     for (const cr of activeFor(idea, cycle)) console.log(`Change ${cr.id} (${cr.title}) is built in this cycle. Cain plans only: ${rerunAreas(cr).join(', ') || 'nothing'}. Brief ${cr.briefTo}.`);
     const problems = validatePlan(idea);
     console.log(problems.length ? `Plan: Cain must write plan.md for cycle ${cycle}:\n  - ${problems.join('\n  - ')}` : `Plan: ok, areas ${readPlan(idea).areas.join(', ')}.`);
+    const dir = direction(idea);
+    if (dir) console.log(`CEO direction from Town Square ${dir.session}, for ${dir.to}: ${dir.text}`);
     const lessons = forPlan(idea, readPlan(idea)?.areas ?? []);
     if (lessons.length) console.log(`Approved lessons that apply (read them before you start): ${lessons.map((l) => `${l.id} ${l.title}`).join('; ')}`);
     const open = openDefectList(idea);
@@ -122,12 +125,13 @@ try {
 
   if (cmd === 'end') {
     let st = state(idea);
-    if (st.state !== 'BUILDING') fail(`${name} is ${st.state}; a cycle can only end from BUILDING`);
+    // PRE_REVIEW is allowed so that a cycle end interrupted half way can be repeated (SPEC 16.4); it never double-counts.
+    if (st.state !== 'BUILDING' && st.state !== 'PRE_REVIEW') fail(`${name} is ${st.state}; a cycle can only end from BUILDING`);
     const cycle = Number(st.cycle);
     const planProblems = validatePlan(idea);
     if (planProblems.length) fail(`plan.md is not valid, so the cycle cannot be checked:\n  - ${planProblems.join('\n  - ')}`);
     const areas = readPlan(idea).areas;
-    transition(idea, 'PRE_REVIEW', { actor: 'factory', note: `cycle ${cycle} pre-review checks` });
+    if (st.state === 'BUILDING') transition(idea, 'PRE_REVIEW', { actor: 'factory', note: `cycle ${cycle} pre-review checks` });
 
     const env = [], summary = [];
     for (const a of areas) {

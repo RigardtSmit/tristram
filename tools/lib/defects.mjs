@@ -54,6 +54,7 @@ export function recordCheck(idea, { check, owner, cycle, findings }) {
     const key = keyOf(check, finding);
     seen.add(key);
     const prev = byKey.get(key);
+    if (prev && prev.lastCycle === cycle) continue;          // already recorded in this cycle: repeating a step never double-counts
     if (!prev) {
       const id = nextId(idea);
       append(idea, { event: 'defect', id, key, owner, check, cycle, summary: finding, result: 'raised' });
