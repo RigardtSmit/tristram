@@ -16,12 +16,12 @@ const transitions = (idea) => {
 };
 const ENDED = ['CLOSED', 'STOPPED'];
 
-// The item's ceilings, including any increase the CEO approved. null when no size is set.
+// The item's ceilings, including any increase the CEO approved. An item the CEO has not sized is Medium (CEO decision, v2.3).
 export function ceilings(idea, root = repoRoot) {
-  const st = readStatus(idea), size = String(st.size || 'none').toUpperCase();
+  const st = readStatus(idea), set = String(st.size || '').toUpperCase(), size = config(root).sizes[set] ? set : 'M';
   const tier = config(root).sizes[size];
   if (!tier) return null;
-  return { size, tokens: tier.tokens + Number(st.budget_extra_tokens || 0), hours: tier.hours + Number(st.budget_extra_hours || 0) };
+  return { size, defaulted: size !== set, tokens: tier.tokens + Number(st.budget_extra_tokens || 0), hours: tier.hours + Number(st.budget_extra_hours || 0) };
 }
 
 export function usage(idea, root = repoRoot) {

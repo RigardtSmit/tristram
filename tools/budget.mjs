@@ -20,7 +20,7 @@ try {
     const idea = findIdea(pos[0] ?? fail('usage: show <idea>'));
     const u = usage(idea);
     if (!u.ceilings) { console.log(`${idea.name}: no size tier set. Cain proposes S, M or L at the briefing; the CEO approves it (node tools/budget.mjs set-size ${idea.name} <S|M|L> --by ceo).`); process.exit(0); }
-    console.log(`${idea.name}: size ${u.ceilings.size}, ${u.state}`);
+    console.log(`${idea.name}: size ${u.ceilings.size}${u.ceilings.defaulted ? ' (default: the CEO has not set one)' : ''}, ${u.state}`);
     console.log(`  Tokens: ${n(u.tokens)} of ${n(u.ceilings.tokens)} (${pct(u.tokenPct)})`);
     console.log(`  Time:   ${u.hours.toFixed(1)} h of ${u.ceilings.hours} h (${pct(u.timePct)})`);
     console.log(`  Used:   ${pct(u.pct)} of the item budget; ${u.invocations} invocation(s)`);

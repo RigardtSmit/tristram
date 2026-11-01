@@ -1,5 +1,5 @@
 {
-  "method": "outbox",
+  "method": "smtp",
   "smtp": { "host": "smtp.gmail.com", "port": 465, "secure": true },
   "digest_hour": 8,
   "overdue_hours": 24
