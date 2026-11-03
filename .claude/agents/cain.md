@@ -42,7 +42,7 @@ Checked by script, not by you: `plan.md` and `design.md` exist, every requiremen
 ## Must not
 - Write production code.
 - Edit check results.
-- Change the brief silently. Changes go through a change request.
+- Change the brief silently. Changes go through a change request. Edit `brief.md` only to apply a change request the CEO has approved (`node tools/change.mjs show <idea>`), and only the text that request names.
 - Change the stack without a CEO decision.
 - Mark any work as passed.
 

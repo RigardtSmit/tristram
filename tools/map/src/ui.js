@@ -54,7 +54,7 @@ function renderDetail() {
   const sel = game.sel;
   if (!sel) {
     box.appendChild(el('h2', null, 'The village'));
-    box.appendChild(el('p', 'hint', 'Click a portal, a character, or the ground. Click the ground to walk the CEO there. Blue portals pull him to them.'));
+    box.appendChild(el('p', 'hint', 'Click a portal or a character. Click the street to walk the CEO there. Drag, scroll or use the arrow keys to look along the street.'));
     return;
   }
   if (sel.kind === 'portal') {
@@ -71,7 +71,7 @@ function renderDetail() {
     box.appendChild(dl);
     const row = el('div', 'opts');
     for (const o of q.options) {
-      const b = el('button', 'stone', o.replace(/_/g, ' ').replace(':', ' to '));
+      const b = el('button', 'stone', o.replace(/_/g, ' ').replace(':', ' '));
       const needsText = o === 'answer' || o === 'new_proposal';
       b.disabled = !isServed() || needsText;
       b.title = needsText ? 'Answer this in Claude Code (/questions or /queue)' : isServed() ? 'Carry out this decision' : 'Open the map with tools/map/serve.mjs to decide here';
@@ -79,7 +79,7 @@ function renderDetail() {
       row.appendChild(b);
     }
     box.appendChild(row);
-    box.appendChild(el('p', 'note', isServed() ? 'Choosing an option records your decision in the item's record and carries it out.' : 'Sample or snapshot data: buttons are inactive. Run node tools/map/serve.mjs for the live map.'));
+    box.appendChild(el('p', 'note', isServed() ? 'Choosing an option records your decision in the record of the item and carries it out.' : 'Sample or snapshot data: buttons are inactive. Run node tools/map/serve.mjs for the live map.'));
     box.appendChild(el('p', 'note result', ''));
     return;
   }
@@ -106,7 +106,6 @@ function renderDetail() {
   box.appendChild(dl);
 }
 
-// The legend now lives in the top-left corner of the canvas (see buildLegend in game.js).
 function initUI() {
   game.onChange = () => { renderQueue(); renderDetail(); };
 }

@@ -1,12 +1,5 @@
 'use strict';
-// Pixel-art core: constants, projection, pixel helpers, tiny bitmap font.
-
-const TW = 64, TH = 32;          // isometric tile size in screen pixels (2:1)
-const VW = 960, VH = 640;        // internal resolution, scaled up by whole numbers
-const OX = 480, OY = 122;        // screen position of tile (0,0)'s top vertex
-const GRID = 15;
-const K = 4 / 3;                 // art scale relative to the first 48px-tile design
-const R = (n) => Math.round(n * K);
+// Pixel-art core: pixel helpers, tiny bitmap font.
 
 // Each character's signature colour (name plates, banners, ground aura).
 const CHAR_COLOUR = {
@@ -94,14 +87,6 @@ function polyFn(g, pts, fn) {
       }
     }
   }
-}
-
-// World projection. Tile (i,j): top vertex at P(i,j).
-function P(i, j) { return [(i - j) * TW / 2 + OX, (i + j) * TH / 2 + OY]; }
-function tileCentre(i, j) { return P(i + 0.5, j + 0.5); }
-function screenToTile(sx, sy) {
-  const u = (sx - OX) / (TW / 2), v = (sy - OY) / (TH / 2);
-  return [Math.floor((u + v) / 2), Math.floor((v - u) / 2)];
 }
 
 // 3x5 bitmap font. Each glyph is five 3-character rows joined together.

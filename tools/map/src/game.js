@@ -8,13 +8,14 @@ const DISPLAY = {
 };
 
 const game = {
-  data: null, village: null, chars: null, portals: null, vignette: null,
+  data: null, art: null, street: null, cast: null, portals: null,
   state: null,          // derived: characters, portals, chips
-  barb: { i: 7.5, j: 9.5, path: [], face: 1, dir: 'front' },
+  barb: { x: SPOT['town-square'], target: null, face: 1 },
+  pace: Object.fromEntries(CHAR_NAMES.map((n, k) => [n, { off: 0, dir: k % 2 ? 1 : -1 }])),
+  cam: 0, camTarget: 0, follow: true, zoom: 'street', viewW: 640,
   sel: null,            // { kind: 'portal'|'char'|'barb', id }
   hover: null,
   hits: [],             // clickable rectangles from the last frame
-  portalPos: [],        // where portals were drawn, for sparks and lights
   onChange: () => {},
 };
 
@@ -59,102 +60,63 @@ function deriveState(data) {
 
 // ---- movement -----------------------------------------------------------
 
-function isFree(i, j) {
-  return i >= 0 && j >= 0 && i < GRID && j < GRID && !game.village.blocked[j][i];
-}
+const spotOf = (loc) => SPOT[loc] ?? SPOT['town-square'];
+function panTo(x) { game.follow = false; game.camTarget = x - game.viewW / 2; }
+function walkToX(x) { game.barb.target = Math.max(10, Math.min(WORLD_W - 10, x)); game.follow = true; }
+function walkToLocation(loc) { walkToX(spotOf(loc) - (loc === 'town-square' ? 0 : 34)); }
 
-function findPath(from, to) {
-  const key = (i, j) => j * GRID + i;
-  const prev = new Map([[key(from[0], from[1]), null]]);
-  const queue = [from];
-  let best = from, bestD = Math.abs(from[0] - to[0]) + Math.abs(from[1] - to[1]);
-  while (queue.length) {
-    const [i, j] = queue.shift();
-    const d = Math.abs(i - to[0]) + Math.abs(j - to[1]);
-    if (d < bestD) { best = [i, j]; bestD = d; }
-    if (i === to[0] && j === to[1]) { best = [i, j]; break; }
-    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const ni = i + di, nj = j + dj;
-      if (!isFree(ni, nj) || prev.has(key(ni, nj))) continue;
-      prev.set(key(ni, nj), [i, j]);
-      queue.push([ni, nj]);
-    }
-  }
-  const path = [];
-  let cur = best;
-  while (cur && !(cur[0] === from[0] && cur[1] === from[1])) {
-    path.unshift(cur);
-    cur = prev.get(key(cur[0], cur[1]));
-  }
-  return path;
-}
-
-function barbTile() { return [Math.floor(game.barb.i), Math.floor(game.barb.j)]; }
-function walkTo(i, j) { game.barb.path = findPath(barbTile(), [i, j]); }
-
-function walkToLocation(loc) {
-  const [hi, hj] = HOME[loc] || HOME['town-square'];
-  const options = loc === 'town-square' ? [[hi, hj]] : [[hi, hj + 1], [hi + 1, hj], [hi - 1, hj], [hi, hj - 1], [hi, hj]];
-  const t = options.find(([i, j]) => isFree(i, j)) || [hi, hj];
-  walkTo(t[0], t[1]);
-}
-
-function stepBarbarian(dt) {
+function step(dt) {
   const b = game.barb;
-  if (!b.path.length) return false;
-  const [ti, tj] = b.path[0];
-  const tx = ti + 0.5, ty = tj + 0.5;
-  const dx = tx - b.i, dy = ty - b.j, dist = Math.hypot(dx, dy), step = 3.4 * dt;
-  if (dx - dy !== 0) b.face = dx - dy > 0 ? 1 : -1;
-  if (dx + dy !== 0) b.dir = dx + dy > 0 ? 'front' : 'back';
-  b.dir4 = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'se' : 'nw') : (dy > 0 ? 'sw' : 'ne');
-  if (dist <= step) { b.i = tx; b.j = ty; b.path.shift(); }
-  else { b.i += (dx / dist) * step; b.j += (dy / dist) * step; }
-  return true;
+  if (b.target != null) {
+    const dx = b.target - b.x, s = 72 * dt;
+    b.face = dx >= 0 ? 1 : -1;
+    if (Math.abs(dx) <= s) { b.x = b.target; b.target = null; } else b.x += Math.sign(dx) * s;
+    if (game.follow) game.camTarget = b.x - game.viewW / 2;
+  }
+  for (const n of CHAR_NAMES) {                       // working characters pace in front of their place
+    const p = game.pace[n];
+    if (game.state.chars[n].state === 'working' && game.cast[n].walk) {
+      p.off += p.dir * 14 * dt;
+      if (Math.abs(p.off) >= 12) { p.off = Math.sign(p.off) * 12; p.dir = -p.dir; }
+    } else if (Math.abs(p.off) > 0.5) { p.dir = -Math.sign(p.off); p.off += p.dir * 14 * dt; }
+    else p.off = 0;
+  }
+  game.camTarget = Math.max(0, Math.min(WORLD_W - game.viewW, game.camTarget));
+  game.cam += (game.camTarget - game.cam) * Math.min(1, dt * 6);
+  if (Math.abs(game.camTarget - game.cam) < 0.5) game.cam = game.camTarget;
 }
 
 // ---- drawing --------------------------------------------------------------
 
-const CS = 1.5;   // characters are drawn at 1.5x so they stand out against the buildings
-// How far above the feet each name plate sits, to clear hats, mitres and horns.
-const PLATE_DY = { cain: -80, wirt: -62, griswold: -72, adria: -96, farnham: -66, lazarus: -98, ogden: -72, barbarian: -90 };
-
-// A sprite may carry its own anchor and scale in spr._a (used by an imported CEO sheet).
-function drawSprite(g, spr, cx, cy, flip) {
-  const a = spr._a || { x: FEET_X, y: FEET_Y, s: CS };
-  const w = Math.round(spr.width * a.s), h = Math.round(spr.height * a.s);
-  const y = Math.round(cy + 4 - a.y * a.s);
-  if (!flip) { g.drawImage(spr, Math.round(cx - a.x * a.s), y, w, h); return; }
-  g.save(); g.translate(Math.round(cx + (spr.width - a.x) * a.s), y); g.scale(-1, 1); g.drawImage(spr, 0, 0, w, h); g.restore();
+// A sprite stands with its foot point at (x, FEET). Frames from an imported sheet carry their own anchor and scale in _a.
+function drawSprite(g, spr, x, flip) {
+  const a = spr._a || { x: spr.width / 2, y: spr.height, s: 1 };
+  const w = Math.round(spr.width * a.s), h = Math.round(spr.height * a.s), y = Math.round(FEET + 2 - a.y * a.s);
+  if (!flip) { g.drawImage(spr, Math.round(x - a.x * a.s), y, w, h); return; }
+  g.save(); g.translate(Math.round(x + a.x * a.s), y); g.scale(-1, 1); g.drawImage(spr, 0, 0, w, h); g.restore();
 }
 
-// Optional: replace the CEO's drawn sprite with frames cut from a sheet in tools/map/local-assets/.
-// cfg.idle and cfg.walk each describe a block of the sheet: origin, cell size, frame count and foot anchor.
-// cfg.walk.rows maps the four isometric directions (se = +i, sw = +j, nw = -i, ne = -j) to sheet rows.
-// Pixels exactly matching cfg.key (the sheet's flat background) become transparent.
+// Optional: the CEO's own art from tools/map/local-assets/. Its diagonal walking rows serve as left and right on the street.
+const CEO_SHEET_SCALE = 0.5;
 function loadCeoSheet(cfg) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       const key = cfg.key || [170, 170, 170];
-      const cut = (a, col, row) => {
+      const frame = (a, col, row) => {
         const { c, g } = mk(a.cw, a.ch);
         g.drawImage(img, a.x0 + col * a.cw, a.y0 + row * a.ch, a.cw, a.ch, 0, 0, a.cw, a.ch);
         const d = g.getImageData(0, 0, a.cw, a.ch);
         for (let i = 0; i < d.data.length; i += 4) if (d.data[i] === key[0] && d.data[i + 1] === key[1] && d.data[i + 2] === key[2]) d.data[i + 3] = 0;
         g.putImageData(d, 0, 0);
-        c._a = { x: a.anchorX, y: a.anchorY, s: cfg.scale ?? 1 };
+        c._a = { x: a.anchorX, y: a.anchorY, s: CEO_SHEET_SCALE };
         return c;
       };
-      const frames = (a, row) => Array.from({ length: a.frames }, (_, k) => cut(a, k, row));
-      const set = game.chars.barbarian;
-      set.idle = frames(cfg.idle, cfg.idle.row);
-      set.work = set.idle;
-      set.idleMs = cfg.idle.ms;
-      set.walkMs = cfg.walk.ms;
-      set.walk4 = {};
-      for (const [dir, row] of Object.entries(cfg.walk.rows)) set.walk4[dir] = frames(cfg.walk, row);
-      if (cfg.plateDy) PLATE_DY.barbarian = cfg.plateDy;
+      const frames = (a, row) => Array.from({ length: a.frames }, (_, k) => frame(a, k, row));
+      game.cast.barbarian = {
+        idle: frames(cfg.idle, cfg.idle.row), idleMs: cfg.idle.ms, walkMs: cfg.walk.ms, head: 50,
+        walkRight: frames(cfg.walk, cfg.walk.rows.se), walkLeft: frames(cfg.walk, cfg.walk.rows.sw),
+      };
       resolve(true);
     };
     img.onerror = () => resolve(false);
@@ -162,10 +124,10 @@ function loadCeoSheet(cfg) {
   });
 }
 
-function ellipseDots(g, cx, cy, rx, ry, n, litCount, litCol, dimCol, size) {
+function ellipseDots(g, cx, cy, rx, ry, n, litCount, litCol, dimCol) {
   for (let k = 0; k < n; k++) {
     const a = (k / n) * Math.PI * 2 - Math.PI / 2;
-    rect(g, Math.round(cx + Math.cos(a) * rx), Math.round(cy + Math.sin(a) * ry), size, 1, k < litCount ? litCol : dimCol);
+    rect(g, Math.round(cx + Math.cos(a) * rx), Math.round(cy + Math.sin(a) * ry), 2, 1, k < litCount ? litCol : dimCol);
   }
 }
 
@@ -176,7 +138,6 @@ function drawMarker(g, cx, top, colour, t) {
   rect(g, cx - 5, y + 1, 11, 13, col);
   rect(g, cx - 5, y + 1, 11, 2, shade(col, 1.3)); rect(g, cx + 3, y + 3, 3, 11, shade(col, 0.7));
   rect(g, cx - 1, y + 4, 3, 5, '#1b130d'); rect(g, cx - 1, y + 10, 3, 2, '#1b130d');
-  rect(g, cx - 2, y + 15, 5, 1, '#0b0806'); rect(g, cx - 1, y + 16, 3, 1, '#0b0806');
 }
 
 function drawPlate(g, id, name, cx, y, hot) {
@@ -188,24 +149,6 @@ function drawPlate(g, id, name, cx, y, hot) {
   rect(g, x, y + 12, w, 1, shade(colour, 0.5)); rect(g, x + w - 1, y, 1, 13, shade(colour, 0.5));
   drawIcon(g, id, x + 4, y + 3, colour);
   drawText(g, name, x + 4 + 7 + 3, y + 4, hot ? '#fff3b0' : '#f0e8d0', '#000');
-  rect(g, Math.round(cx) - 2, y + 14, 5, 1, colour); rect(g, Math.round(cx) - 1, y + 15, 3, 1, colour);
-}
-
-function drawBanner(g, b, t, idx) {
-  const col = CHAR_COLOUR[b.ch];
-  const x = Math.round(b.x), y = Math.round(b.y);
-  rect(g, x - 1, y - 30, 2, 31, '#2c2018'); rect(g, x - 2, y - 32, 4, 3, '#c8b45a');
-  const len = 20;
-  for (let i = 0; i < len; i++) {
-    const wave = Math.round(Math.sin(t / 240 + i * 0.45 + idx) * (1 + i * 0.09));
-    const hgt = 14 - Math.floor(i / 7) * 1;
-    const tail = i > len - 5 ? (i - (len - 5)) : 0;                       // swallow-tail cut
-    for (let j = 0; j < hgt; j++) {
-      if (tail && Math.abs(j - hgt / 2) < tail * 0.9) continue;
-      rect(g, x + 1 + i, y - 30 + j + wave, 1, 1, shade(col, (j < 2 ? 1.25 : j > hgt - 3 ? 0.65 : 1) * (0.92 + rnd(i, j, 4) * 0.12)));
-    }
-  }
-  drawIcon(g, b.ch, x + 5, y - 27 + Math.round(Math.sin(t / 240 + 2.2 + idx) * 1), '#1b130d');
 }
 
 function chipLabel(g, text, x, y, colourName) {
@@ -217,84 +160,39 @@ function chipLabel(g, text, x, y, colourName) {
   drawText(g, text, x + 6, y + 3, '#2a1e10');
 }
 
-function render(t) {
-  const { g } = game.screen;
-  const S = game.state;
-  g.drawImage(game.village.ground, 0, 0);
+// Tiled layers behind the street, moving slower than it.
+function drawLayer(g, img, speed) {
+  const w = img.width, off = -((game.cam * speed) % w);
+  for (let x = Math.floor(off); x < game.viewW; x += w) g.drawImage(img, x, 0);
+}
 
-  const drawables = game.village.objects.map((o) => ({ key: o.key, draw: () => g.drawImage(o.c, o.x, o.y) }));
-  const hits = [];
-  const frameIdx = (period, off) => Math.floor((t + off) / period) % 2;
-  const fx = game.village.fx;
+function render(t, dt) {
+  const { g } = game.screen, S = game.state, hits = [], cam = Math.round(game.cam), inView = (x, m = 80) => x > cam - m && x < cam + game.viewW + m;
+  drawLayer(g, game.art.sky, 0.1);
+  drawLayer(g, game.art.roofs, 0.35);
+  g.drawImage(game.street, cam, 0, game.viewW, WORLD_H, 0, 0, game.viewW, WORLD_H);
 
-  fx.fires.forEach((f) => drawables.push({ key: f.key + 0.05, draw: () => drawFlame(g, f.x, f.y, t + f.x * 7, f.kind === 'forge' ? 1.2 : 0.95) }));
-  fx.banners.forEach((b, k) => drawables.push({ key: b.key + 0.1, draw: () => drawBanner(g, b, t, k) }));
+  g.save();
+  g.translate(-cam, 0);
 
-  const plates = [];
-  CHAR_NAMES.forEach((n, idx) => {
-    const [ci, cj] = HOME[n];
-    const [cx, cy] = tileCentre(ci, cj);
-    const st = S.chars[n], set = game.chars[n];
-    const spr = st.state === 'working' ? set.work[frameIdx(340, idx * 97)] : set.idle[frameIdx(700, idx * 211)];
-    const colour = CHAR_COLOUR[n], hot = game.sel?.id === n || game.hover === n;
-    drawables.push({
-      key: ci + cj + 1,
-      draw: () => {
-        // aura under the feet in the character's own colour, plus a progress ring while working
-        ellipseDots(g, cx, cy + 5, 19, 9.5, 36, hot ? 36 : 36, colour, colour, 2);
-        if (st.state === 'working') ellipseDots(g, cx, cy + 5, 25, 12.5, 32, Math.round(st.progress * 32), '#ffd24a', '#3b3426', 3);
-        drawSprite(g, spr, cx, cy, false);
-      },
-    });
-    plates.push({ id: n, name: DISPLAY[n].toUpperCase(), cx, cy, st, hot });
-    hits.push({ kind: 'char', id: n, x: cx - 24, y: cy + PLATE_DY[n] - 4, w: 48, h: -PLATE_DY[n] + 18 });
-  });
-
-  const b = game.barb, moving = b.path.length > 0;
-  const [bx, by] = P(b.i, b.j);
-  const bset = game.chars.barbarian;
-  // With an imported sheet he has four true walking directions; otherwise one drawn sprite, mirrored.
-  const walkFrames = bset.walk4 ? bset.walk4[b.dir4 || 'sw'] : bset.walk[b.dir];
-  const bspr = moving
-    ? walkFrames[Math.floor(t / (bset.walkMs || 130)) % walkFrames.length]
-    : bset.idle[Math.floor(t / (bset.idleMs || 700)) % bset.idle.length];
-  const mirror = !bset.walk4 && b.face < 0;
-  drawables.push({
-    key: b.i + b.j + 0.5,
-    draw: () => { ellipseDots(g, bx, by + 5, 19, 9.5, 36, 36, CHAR_COLOUR.barbarian, CHAR_COLOUR.barbarian, 2); drawSprite(g, bspr, bx, by, mirror); },
-  });
-  plates.push({ id: 'barbarian', name: 'CEO', cx: bx, cy: by, st: null, hot: game.sel?.id === 'barbarian' || game.hover === 'barbarian' });
-  hits.push({ kind: 'barb', id: 'barbarian', x: bx - 24, y: by + PLATE_DY.barbarian - 4, w: 48, h: -PLATE_DY.barbarian + 18 });
-
-  drawables.sort((p, q) => p.key - q.key);
-  for (const d of drawables) d.draw();
-  drawParticles(g);
-  drawFog(g);
-
-  // portals float above their location; they light the area around them
+  // the lights of the village
+  g.globalCompositeOperation = 'lighter';
+  for (const l of LIGHTS) if (inView(l.x)) drawLight(g, l.x, l.y, l.r, l.col, (l.fire ? 0.3 + Math.sin(t / 90 + l.x) * 0.08 : 0.2) + Math.sin(t / 700 + l.x) * 0.03);
   const group = {};
   for (const q of S.portals) (group[q.loc] ||= []).push(q);
-  const portalLights = [], portalDraws = [];
-  game.portalPos = [];
+  const placed = [];
   for (const [loc, list] of Object.entries(group)) {
-    const [hi, hj] = HOME[loc] || HOME['town-square'];
-    const [cx, cy] = tileCentre(hi, hj);
     list.forEach((q, k) => {
-      // each portal stands on the ground just beside its location, side by side when there are several
-      const gx = Math.round(cx + 40 + k * 46), gy = Math.round(cy + 8);
-      const px = gx - PORTAL_W / 2;
-      const py = gy - PORTAL_H + Math.round(Math.sin(t / 520 + k + hi) * 2);
-      const pc = PORTAL_COLOURS[q.colour];
-      portalLights.push({ x: px + PORTAL_W / 2, y: py + PORTAL_H / 2, r: 60, col: pc.ring, flicker: true });
-      portalDraws.push({ q, px, py, gx, gy });
-      game.portalPos.push({ x: px + PORTAL_W / 2, y: py + PORTAL_H / 2, col: pc.glow });
+      const gx = spotOf(loc) + 34 + k * 40, py = FEET - PORTAL_H + 2 + Math.round(Math.sin(t / 520 + k + gx) * 1.5);
+      placed.push({ q, gx, px: gx - PORTAL_W / 2, py });
+      drawLight(g, gx, py + PORTAL_H / 2, 52, PORTAL_COLOURS[q.colour].ring, 0.28);
     });
   }
+  g.globalCompositeOperation = 'source-over';
+  drawEmbers(g, dt);
 
-  drawLighting(g, t, fx.lights, portalLights);
-
-  for (const { q, px, py, gx, gy } of portalDraws) {
-    ellipseDots(g, gx, gy - 1, 22, 8, 30, 30, PORTAL_COLOURS[q.colour].ring, PORTAL_COLOURS[q.colour].ring, 2);   // gate ring on the ground
+  for (const { q, gx, px, py } of placed) {
+    ellipseDots(g, gx, FEET + 1, 17, 4, 24, 24, PORTAL_COLOURS[q.colour].ring, PORTAL_COLOURS[q.colour].ring);
     g.drawImage(game.portals[q.colour][Math.floor(t / 110) % PORTAL_FRAMES], px, py);
     hits.push({ kind: 'portal', id: q.id, x: px, y: py, w: PORTAL_W, h: PORTAL_H });
     if (game.sel?.id === q.id) {
@@ -305,90 +203,84 @@ function render(t) {
     }
   }
 
-  // work-item chips beside their location
+  // the characters
+  const plates = [];
+  CHAR_NAMES.forEach((n, idx) => {
+    const st = S.chars[n], c = game.cast[n], p = game.pace[n], x = SPOT[n] + p.off, moving = p.off !== 0 && c.walk;
+    const list = st.state === 'working' && c.work ? c.work : moving ? c.walk : c.idle;
+    const spr = list[Math.floor((t + idx * 137) / (moving ? 110 : 170)) % list.length];
+    const colour = CHAR_COLOUR[n], hot = game.sel?.id === n || game.hover === n;
+    ellipseDots(g, x, FEET + 1, 15, 4, 24, 24, colour, colour);
+    if (st.state === 'working') ellipseDots(g, x, FEET + 1, 20, 6, 28, Math.round(st.progress * 28), '#ffd24a', '#3b3426');
+    drawSprite(g, spr, x, moving ? p.dir < 0 : false);
+    const y0 = FEET - c.head - 16;
+    plates.push({ id: n, name: DISPLAY[n].toUpperCase(), x, y: y0, st, hot });
+    hits.push({ kind: 'char', id: n, x: x - 20, y: y0 - 2, w: 40, h: FEET - y0 + 6 });
+  });
+
+  const b = game.barb, bc = game.cast.barbarian, walking = b.target != null, right = b.face > 0;
+  let bspr, bflip = false;
+  if (walking && bc.walkRight) { const l = right ? bc.walkRight : bc.walkLeft; bspr = l[Math.floor(t / (bc.walkMs || 110)) % l.length]; }
+  else if (walking) { bspr = bc.walk[Math.floor(t / 110) % bc.walk.length]; bflip = !right; }
+  else { bspr = bc.idle[Math.floor(t / (bc.idleMs || 170)) % bc.idle.length]; bflip = !bc.walkRight && !right; }
+  ellipseDots(g, b.x, FEET + 1, 15, 4, 24, 24, CHAR_COLOUR.barbarian, CHAR_COLOUR.barbarian);
+  drawSprite(g, bspr, b.x, bflip);
+  const by = FEET - bc.head - 16;
+  plates.push({ id: 'barbarian', name: 'CEO', x: b.x, y: by, st: null, hot: game.sel?.id === 'barbarian' || game.hover === 'barbarian' });
+  hits.push({ kind: 'barb', id: 'barbarian', x: b.x - 20, y: by - 2, w: 40, h: FEET - by + 6 });
+
+  // work items beside their place
   const perLoc = {};
   for (const chip of S.chips) {
-    const [hi, hj] = HOME[chip.loc] || HOME['town-square'];
-    const [cx, cy] = tileCentre(hi, hj);
     const k = perLoc[chip.loc] = (perLoc[chip.loc] ?? -1) + 1;
     const col = chip.state === 'BLOCKED_FOR_CEO' ? 'blue' : chip.state === 'ENVIRONMENT_BLOCKED' ? 'red' : null;
-    chipLabel(g, chip.id, Math.round(cx + 24), Math.round(cy - 18 + k * 15), col);
+    chipLabel(g, chip.id, spotOf(chip.loc) - 58, FEET - 46 + k * 14, col);
   }
 
-  // name plates, markers and place names sit on top so every agent is easy to find
   for (const p of plates) {
-    const y0 = Math.round(p.cy) + PLATE_DY[p.id];
-    drawPlate(g, p.id, p.name, Math.round(p.cx), y0, p.hot);
-    if (p.st?.state === 'blocked') drawMarker(g, Math.round(p.cx), y0 - 24, p.st.blocked.colour, t);
-    if (p.hot && p.id !== 'barbarian') drawTextCentred(g, PLACE[p.id].toUpperCase(), Math.round(p.cx), Math.round(p.cy) + 18, '#ffe9a8', '#0b0806');
-    if (p.hot && p.id === 'barbarian') drawTextCentred(g, 'BARBARIAN', Math.round(p.cx), Math.round(p.cy) + 18, '#ffe9a8', '#0b0806');
+    drawPlate(g, p.id, p.name, Math.round(p.x), p.y, p.hot);
+    if (p.st?.state === 'blocked') drawMarker(g, Math.round(p.x), p.y - 18, p.st.blocked.colour, t);
   }
-  const sq = tileCentre(...HOME['town-square']);
-  drawTextCentred(g, 'TOWN SQUARE', Math.round(sq[0]), Math.round(sq[1]) + 34, '#d8c898', '#0b0806');
-
   if (game.sel && game.sel.kind !== 'portal') {
     const pl = plates.find((e) => e.id === game.sel.id);
-    if (pl) { const ax = Math.round(pl.cx), ay = Math.round(pl.cy) + PLATE_DY[pl.id] - 38 - (st2(t)); rect(g, ax - 4, ay, 9, 1, '#fff3b0'); rect(g, ax - 3, ay + 1, 7, 1, '#fff3b0'); rect(g, ax - 1, ay + 2, 3, 1, '#fff3b0'); }
+    if (pl) { const ax = Math.round(pl.x), ay = pl.y - 7 - (Math.floor(t / 300) % 2 ? 2 : 0); rect(g, ax - 4, ay, 9, 1, '#fff3b0'); rect(g, ax - 3, ay + 1, 7, 1, '#fff3b0'); rect(g, ax - 1, ay + 2, 3, 1, '#fff3b0'); }
   }
+  g.restore();
 
-  g.drawImage(game.vignette, 0, 0);
-  g.drawImage(game.legend, 14, 14);
-  game.hits = hits;
+  game.hits = hits.map((h) => ({ ...h, x: h.x - cam }));
+  if (game.zoom === 'street') drawGuides(g, placed, cam);
 }
 
-// The legend sits in the top-left corner of the canvas, drawn once.
-function buildLegend() {
-  const rows = [
-    ['blue', 'BLUE  CEO DECISION'], ['gold', 'GOLD  WARNING'], ['red', 'RED   BLOCKED OUTSIDE'], ['grey', 'GREY  INFO ONLY'],
-  ];
-  const w = 214, h = 22 + rows.length * 14 + 6 + 3 * 14 + 8;
-  const { c, g } = mk(w, h);
-  rect(g, 0, 0, w, h, '#000');
-  rect(g, 1, 1, w - 2, h - 2, '#17120d');
-  rect(g, 1, 1, w - 2, 1, '#6b6256'); rect(g, 1, 1, 1, h - 2, '#6b6256');
-  drawText(g, 'LEGEND', 8, 7, '#c8a85a', '#000', 2);
-  let y = 24;
-  for (const [col, label] of rows) {
-    const p = PORTAL_COLOURS[col].ring;
-    polyFn(g, [[13, y], [19, y + 5], [13, y + 10], [7, y + 5]], () => p);
-    drawText(g, label, 26, y + 1, '#e6dcc2', '#000', 2);
-    y += 14;
+// When the street does not fit: a strip showing the whole village, and an arrow at the edge for each portal out of view.
+function drawGuides(g, placed, cam) {
+  const mw = Math.min(280, game.viewW - 20), mx = Math.round((game.viewW - mw) / 2), my = 5, sc = mw / WORLD_W;
+  rect(g, mx - 1, my - 1, mw + 2, 12, '#000'); rect(g, mx, my, mw, 10, '#17120d');
+  rect(g, mx + Math.round(cam * sc), my, Math.max(4, Math.round(game.viewW * sc)), 10, '#3a3228');
+  for (const n of CHAR_NAMES) rect(g, mx + Math.round(SPOT[n] * sc), my + 7, 2, 2, CHAR_COLOUR[n]);
+  for (const { q, gx } of placed) rect(g, mx + Math.round(gx * sc) - 1, my + 1, 3, 5, PORTAL_COLOURS[q.colour].ring);
+  rect(g, mx + Math.round(game.barb.x * sc), my + 1, 1, 8, '#fff');
+  game.hits.push({ kind: 'pan', map: { x: mx, w: mw }, x: mx, y: my - 2, w: mw, h: 14 });
+  let left = 0, right = 0;
+  for (const { q, gx } of placed) {
+    const side = gx < cam ? 'l' : gx > cam + game.viewW ? 'r' : null;
+    if (!side) continue;
+    const k = side === 'l' ? left++ : right++, ax = side === 'l' ? 4 : game.viewW - 16, ay = 100 + k * 16, col = PORTAL_COLOURS[q.colour].ring;
+    rect(g, ax - 1, ay - 1, 14, 14, '#000'); rect(g, ax, ay, 12, 12, '#17120d');
+    for (let i = 0; i < 5; i++) rect(g, side === 'l' ? ax + 3 + i : ax + 8 - i, ay + 2 + i, 1, 8 - i * 2 > 0 ? 8 - i * 2 : 1, col);
+    game.hits.push({ kind: 'portal', id: q.id, pan: gx, x: ax, y: ay, w: 12, h: 12 });
   }
-  y += 6;
-  const states = [['#8a8270', 'IDLE  AT REST'], ['#ffd24a', 'WORKING  WITH RING'], ['#ff5a4a', '!  BLOCKED, MARKER']];
-  for (const [col, label] of states) {
-    rect(g, 7, y, 11, 10, '#000'); rect(g, 8, y + 1, 9, 8, col);
-    drawText(g, label, 26, y + 1, '#e6dcc2', '#000', 2);
-    y += 14;
-  }
-  return c;
-}
-function st2(t) { return Math.floor(t / 300) % 2 ? 2 : 0; }
-
-function buildVignette() {
-  const { c, g } = mk(VW, VH);
-  const gr = g.createRadialGradient(VW / 2, VH / 2, VH * 0.42, VW / 2, VH / 2, VW * 0.62);
-  gr.addColorStop(0, 'rgba(6,5,3,0)'); gr.addColorStop(1, 'rgba(6,5,3,0.55)');
-  g.fillStyle = gr; g.fillRect(0, 0, VW, VH);
-  return c;
 }
 
 // ---- input -----------------------------------------------------------------
 
 function canvasPoint(e) {
   const r = game.screen.c.getBoundingClientRect();
-  return [(e.clientX - r.left) * (VW / r.width), (e.clientY - r.top) * (VH / r.height)];
+  return [(e.clientX - r.left) * (game.viewW / r.width), (e.clientY - r.top) * (WORLD_H / r.height)];
 }
 function hitAt(x, y) {
-  for (let k = game.hits.length - 1; k >= 0; k--) {
-    const h = game.hits[k];
-    if (h.kind === 'portal' && x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h) return h;
-  }
-  for (let k = game.hits.length - 1; k >= 0; k--) {
-    const h = game.hits[k];
-    if (h.kind !== 'portal' && x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h) return h;
-  }
-  return null;
+  const inside = (h) => x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h;
+  return game.hits.filter((h) => h.kind === 'pan' || h.pan != null).find(inside)
+    || game.hits.find((h) => h.kind === 'portal' && inside(h)) || game.hits.find(inside) || null;
 }
 
 function select(sel) { game.sel = sel; game.onChange(); }
@@ -397,40 +289,66 @@ function selectPortal(id, walk) {
   const q = game.state.portals.find((p) => p.id === id);
   if (!q) return;
   select({ kind: 'portal', id });
+  panTo(spotOf(q.loc));
   if (walk && q.colour === 'blue') walkToLocation(q.loc);
 }
 
 function initInput() {
   const el = game.screen.c;
-  el.addEventListener('click', (e) => {
-    const [x, y] = canvasPoint(e);
-    const h = hitAt(x, y);
-    if (h) { select({ kind: h.kind, id: h.id }); return; }
-    const [ti, tj] = screenToTile(x, y);
-    if (isFree(ti, tj)) { walkTo(ti, tj); game.sel = null; game.onChange(); }
-  });
-  el.addEventListener('mousemove', (e) => {
-    const [x, y] = canvasPoint(e);
-    const h = hitAt(x, y);
-    game.hover = h && h.kind !== 'portal' ? h.id : null;
+  let down = null;
+  el.addEventListener('pointerdown', (e) => { down = { x: e.clientX, cam: game.camTarget, moved: false }; });
+  window.addEventListener('pointerup', () => { setTimeout(() => { down = null; }, 0); });
+  el.addEventListener('pointermove', (e) => {
+    if (down && e.buttons && Math.abs(e.clientX - down.x) > 4) {
+      down.moved = true; game.follow = false;
+      game.camTarget = down.cam - (e.clientX - down.x) * (game.viewW / el.getBoundingClientRect().width);
+      el.style.cursor = 'grabbing';
+      return;
+    }
+    const [x, y] = canvasPoint(e), h = hitAt(x, y);
+    game.hover = h && (h.kind === 'char' || h.kind === 'barb') ? h.id : null;
     el.style.cursor = h ? 'pointer' : 'crosshair';
   });
+  el.addEventListener('click', (e) => {
+    if (down?.moved) return;
+    const [x, y] = canvasPoint(e), h = hitAt(x, y);
+    if (h?.kind === 'pan') { panTo((x - h.map.x) / h.map.w * WORLD_W); return; }
+    if (h?.kind === 'portal') { selectPortal(h.id, false); return; }
+    if (h) { select({ kind: h.kind, id: h.id }); return; }
+    walkToX(x + game.cam); game.sel = null; game.onChange();
+  });
   el.addEventListener('mouseleave', () => { game.hover = null; });
+  el.addEventListener('wheel', (e) => { if (game.zoom !== 'street') return; e.preventDefault(); game.follow = false; game.camTarget += (e.deltaX || e.deltaY) * 0.5; }, { passive: false });
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    game.follow = false; game.camTarget += (e.key === 'ArrowLeft' ? -1 : 1) * 80;
+  });
+  document.getElementById('zoom').addEventListener('click', () => {
+    game.zoom = game.zoom === 'street' ? 'whole' : 'street';
+    fitCanvas();
+  });
 }
 
 // ---- start --------------------------------------------------------------------
 
-// The canvas is shown 25% larger than its internal 960x640 (1200x800), then shrinks to fit the window.
-const DISPLAY_SCALE = 1.25;
+// "Close up" shows part of the street at a whole-number scale and scrolls; "Whole street" fits all of it in the window.
 function fitCanvas() {
-  const wide = window.innerWidth >= VW * DISPLAY_SCALE + 360;
-  const availW = wide ? window.innerWidth - 360 : window.innerWidth - 16;
-  const fit = Math.min(availW / VW, (window.innerHeight - 16) / VH);
-  const scale = fit >= DISPLAY_SCALE * 2 ? DISPLAY_SCALE * 2 : Math.min(DISPLAY_SCALE, fit);
-  const w = VW * scale;
+  const wide = window.innerWidth >= 1000;
+  const availW = (wide ? window.innerWidth - 360 : window.innerWidth) - 16, availH = window.innerHeight - 16;
+  let scale;
+  if (game.zoom === 'whole') { scale = availW / WORLD_W; game.viewW = WORLD_W; }
+  else {
+    scale = Math.max(1, Math.min(Math.round(availW / 620), Math.floor(availH / WORLD_H)));
+    game.viewW = Math.min(WORLD_W, Math.ceil(availW / scale));
+  }
   const el = game.screen.c;
-  el.style.width = Math.floor(w) + 'px';
-  el.style.height = Math.floor(w * VH / VW) + 'px';
+  el.width = game.viewW; el.height = WORLD_H;
+  game.screen.g.imageSmoothingEnabled = false;
+  el.style.width = Math.floor(game.viewW * scale) + 'px';
+  el.style.height = Math.floor(WORLD_H * scale) + 'px';
+  document.getElementById('zoom').textContent = game.zoom === 'street' ? 'Whole street' : 'Close up';
+  game.camTarget = Math.max(0, Math.min(WORLD_W - game.viewW, game.camTarget));
+  if (game.zoom === 'whole') { game.cam = 0; game.camTarget = 0; }
 }
 
 // A map opened from the local server (serve.mjs) follows the factory's files and can carry out the CEO's decisions.
@@ -451,20 +369,20 @@ async function pollData() {
   } catch { /* the server is gone; the map keeps what it has */ }
 }
 
-function startGame(data) {
+async function startGame(data) {
   game.data = data;
-  game.screen = (() => { const c = document.getElementById('screen'); const g = c.getContext('2d'); g.imageSmoothingEnabled = false; return { c, g }; })();
-  game.village = buildVillage();
-  game.chars = buildCharacters();
+  game.art = await loadArt(window.FACTORY_ART);
+  game.screen = (() => { const c = document.getElementById('screen'); return { c, g: c.getContext('2d') }; })();
+  game.street = buildStreet(game.art);
+  game.cast = buildCast(game.art);
   game.portals = buildPortals();
-  game.vignette = buildVignette();
-  game.legend = buildLegend();
   game.state = deriveState(data);
-  initFx(game.village);
-  if (data.ceoSheet) loadCeoSheet(data.ceoSheet);
+  if (data.ceoSheet) await loadCeoSheet(data.ceoSheet);
   initInput();
+  if (location.hash === '#whole') game.zoom = 'whole';
   fitCanvas();
   window.addEventListener('resize', fitCanvas);
+  game.cam = game.camTarget = game.barb.x - game.viewW / 2;
 
   // The CEO walks to the oldest blue portal on load.
   const firstBlue = game.state.portals.find((p) => p.colour === 'blue');
@@ -474,9 +392,8 @@ function startGame(data) {
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    stepBarbarian(dt);
-    updateFx(dt, now, game.portalPos);
-    render(now);
+    step(dt);
+    render(now, dt);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

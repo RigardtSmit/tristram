@@ -13,7 +13,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 13px/1.45 Georgia, 'Times New Roman', serif; }
 #app { display: flex; gap: 12px; padding: 8px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
-#stage { border: 4px solid; border-color: var(--edge-hi) var(--edge-lo) var(--edge-lo) var(--edge-hi); background: #000; line-height: 0; }
+#stage { position: relative; border: 4px solid; border-color: var(--edge-hi) var(--edge-lo) var(--edge-lo) var(--edge-hi); background: #000; line-height: 0; }
 #screen { image-rendering: pixelated; image-rendering: crisp-edges; display: block; cursor: crosshair; }
 #panel { width: 320px; max-width: 100%; background: linear-gradient(180deg, var(--stone2), var(--stone)); border: 4px solid; border-color: var(--edge-hi) var(--edge-lo) var(--edge-lo) var(--edge-hi); padding: 12px 14px 16px; }
 h1 { margin: 0; font-size: 26px; letter-spacing: 6px; color: var(--gold); text-align: center; text-shadow: 0 2px 0 #000; font-weight: 700; }
@@ -38,6 +38,7 @@ dt { color: var(--dim); } dd { margin: 0; overflow-wrap: anywhere; }
 .opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 button.stone { font: 700 12px Georgia, serif; text-transform: capitalize; color: var(--gold); background: linear-gradient(180deg, #3a3228, #26211b); border: 2px solid; border-color: var(--edge-hi) var(--edge-lo) var(--edge-lo) var(--edge-hi); padding: 4px 10px; }
 button.stone:disabled { opacity: .55; cursor: not-allowed; }
+#zoom { position: absolute; top: 4px; right: 4px; line-height: 1.2; font-size: 11px; opacity: .9; }
 .legend li { display: flex; gap: 8px; align-items: center; margin: 3px 0; font-size: 12px; }
 .dotkey { flex: none; width: 11px; height: 11px; display: inline-block; border: 1px solid #000; }
 .dotkey.idle { background: #8a8270; } .dotkey.working { background: #b6d37a; } .dotkey.marker { background: var(--red); }
@@ -46,13 +47,24 @@ button.stone:disabled { opacity: .55; cursor: not-allowed; }
 </head>
 <body>
 <div id="app">
-  <div id="stage"><canvas id="screen" width="960" height="640" aria-label="Isometric map of the village of Tristram"></canvas></div>
+  <div id="stage"><canvas id="screen" width="640" height="288" aria-label="Side view of the village of Tristram"></canvas><button id="zoom" class="stone" type="button">Whole street</button></div>
   <aside id="panel">
     <h1>TRISTRAM</h1>
     <p class="sub">The software factory</p>
     <h2>Waiting for the CEO <span id="qcount"></span></h2>
     <ul id="qlist"></ul>
     <section id="detail"></section>
+    <h2>Legend</h2>
+    <ul class="legend">
+      <li><span class="gem blue"></span> Blue: CEO decision</li>
+      <li><span class="gem gold"></span> Gold: warning</li>
+      <li><span class="gem red"></span> Red: blocked from outside</li>
+      <li><span class="gem grey"></span> Grey: information only</li>
+      <li><span class="dotkey idle"></span> Idle: at rest</li>
+      <li><span class="dotkey working"></span> Working: paces, with a ring</li>
+      <li><span class="dotkey marker"></span> Blocked: marker above the name</li>
+    </ul>
+    <p class="note">Art by Luis Zuno (@ansimuz), CC0.</p>
   </aside>
 </div>
 <script>

@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { factory, buildCycleOne } from './helpers.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
 import { createServer } from '../map/serve.mjs';
+import { buildPage, artUris } from '../map/build.mjs';
+import { repoRoot } from '../lib/paths.mjs';
 
 async function withServer(x, fn) {
   const server = createServer({ root: x.root });
@@ -57,4 +62,17 @@ test('a blocking question turns its asker gold, and budget exhaustion blocks Cai
     const d = await get(`${base}/api/data`);
     assert.match(d.ideas[0].blocked_agents, /adria:gold:waiting on Q-001-01/);
   });
+});
+
+test('the built page parses as JavaScript and carries every piece of art it names', () => {
+  const data = { source: 'mock', queue: [], ideas: [], metrics: [], registry: {} };
+  const html = buildPage(data);
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  assert.equal(scripts.length, 2);
+  for (const s of scripts) new vm.Script(s);                                           // throws on a syntax error
+  const art = artUris();
+  for (const name of Object.keys(JSON.parse(fs.readFileSync(path.join(repoRoot, 'tools', 'map', 'art.json'), 'utf8')))) {
+    assert.match(art[name], /^data:image\/png;base64,iVBOR/, name);
+    assert.ok(html.includes(art[name]), `${name} is not in the page`);
+  }
 });

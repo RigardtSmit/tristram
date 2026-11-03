@@ -1,6 +1,6 @@
 # Graphics strategy for the village
 
-Status: recommendation for the CEO's decision. Nothing here is built yet.
+Status: the CEO chose the Gothicvania packs (CC0) and a side-view street. It is built: `tools/map/art.json` lists the art, `tools/map/src/street.js` composes it. The rest of this page is the original recommendation, kept for later art decisions such as commissioning.
 
 ## Why the current art is weak
 

@@ -15,6 +15,7 @@ knowledge_base:
     - ideas/<idea>/
   write:
     - ideas/<idea>/plan.md
+    - ideas/<idea>/brief.md
     - ideas/<idea>/artifacts/design.md
     - ideas/<idea>/artifacts/traceability.md
     - ideas/<idea>/decisions/

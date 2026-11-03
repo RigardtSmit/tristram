@@ -847,7 +847,7 @@ Defect events are recorded with ID, owner, cycle, and whether each cycle fixed, 
 
 ### 19.1 The village map
 
-A single HTML file, SVG-based, with the village and its locations. Proposed locations:
+A single HTML file with the village as a side-view street on a canvas, built from the CC0 Gothicvania art in `tools/map/assets/gothicvania/` (the pieces used are listed in `tools/map/art.json`). The street scrolls, and can also show all of it at once. Locations, left to right along the street as drawn:
 
 | Character | Location |
 |---|---|
@@ -873,7 +873,7 @@ A browser cannot read local files from a `file://` page, and cannot write files 
 
 ### 19.3 Visual states
 
-- Character state: idle, working (progress ring), blocked (red or gold marker).
+- Character state: idle, working (paces in front of their place, with a progress ring), blocked (red or gold marker).
 - Portals: blue, gold, red, grey, per section 17.3.
 - Work items move between locations as their stage changes, so bottlenecks are visible.
 

@@ -46,15 +46,22 @@ export function ceoSheet() {
   return sheet;
 }
 
-let sheetCache;
+// The art the page uses (art.json), inlined so the single file also opens from file://.
+export function artUris() {
+  const list = JSON.parse(fs.readFileSync(path.join(here, 'art.json'), 'utf8'));
+  return Object.fromEntries(Object.entries(list).map(([name, rel]) => [name, 'data:image/png;base64,' + fs.readFileSync(path.join(here, 'assets', 'gothicvania', rel)).toString('base64')]));
+}
+
+let sheetCache, artCache;
 export function buildPage(data) {
   if (sheetCache === undefined) sheetCache = ceoSheet();
-  const order = ['core', 'world', 'props', 'chars', 'portals', 'fx', 'game', 'ui'];
+  artCache ??= artUris();
+  const order = ['core', 'portals', 'street', 'game', 'ui'];
   const code = order.map((n) => fs.readFileSync(path.join(here, 'src', `${n}.js`), 'utf8')).join('\n');
   const tpl = fs.readFileSync(path.join(here, 'src', 'template.html'), 'utf8');
   // Use function replacers so "$" in the code is never read as a replacement pattern.
   return tpl
-    .replace('/*DATA*/', () => `window.FACTORY_DATA = ${JSON.stringify({ ...data, ceoSheet: sheetCache }).replace(/</g, '\\u003c')};`)
+    .replace('/*DATA*/', () => `window.FACTORY_DATA = ${JSON.stringify({ ...data, ceoSheet: sheetCache }).replace(/</g, '\\u003c')};\nwindow.FACTORY_ART = ${JSON.stringify(artCache)};`)
     .replace('/*CODE*/', () => code);
 }
 
